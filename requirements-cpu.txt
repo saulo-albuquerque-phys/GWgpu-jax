@@ -1,0 +1,41 @@
+# ============================================================
+# GWjax — CPU / macOS requirements
+# Python 3.11 | JAX CPU backend
+# Tested on macOS x86_64 (Intel) and Linux x86_64 (no GPU)
+# ============================================================
+
+# --- JAX (CPU only) -----------------------------------------
+jax[cpu]==0.4.31
+jaxlib==0.4.31
+
+# --- BlackJAX nested sampling (pinned commit) ---------------
+# WARNING: do NOT replace with a later commit — PartitionedState
+# API was removed in subsequent commits on the nested_sampling branch.
+blackjax @ git+https://github.com/handley-lab/blackjax.git@dedbf11da33eb5ca286f6731e2c51f2b254b953f
+
+# --- Gravitational-wave waveforms ---------------------------
+ripplegw==0.0.9
+
+# --- GW / Bayesian inference --------------------------------
+bilby==2.5.0
+dynesty==2.1.5
+emcee==3.1.6
+
+# --- Nested sampling post-processing ------------------------
+anesthetic==2.9.3
+
+# --- JAX ecosystem ------------------------------------------
+chex==0.1.90
+optax==0.2.5
+jaxopt==0.8.5
+
+# --- Scientific computing -----------------------------------
+numpy==2.4.6
+scipy==1.17.1
+matplotlib==3.10.1
+pandas==2.2.3
+h5py==3.13.0
+
+# --- Utilities ----------------------------------------------
+corner==2.2.3
+tqdm==4.67.1
