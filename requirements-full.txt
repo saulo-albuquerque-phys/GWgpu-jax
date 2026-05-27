@@ -1,0 +1,56 @@
+# ============================================================
+# GWjax — full environment requirements
+# Python 3.11 | JAX CPU backend | all waveform generators
+#
+# Includes:
+#   ripplegw        — IMRPhenomD, frequency-domain, BBH
+#   mlgw_bns_jax    — ML-BNS, frequency-domain, BNS  (local subdir)
+#   mlgw_bbh_jax    — SEOBNRv5HM (model_4), time-domain, BBH  (local subdir)
+#   blackjax-ns     — nested sampling (pinned commit)
+#
+# NOTE: numpy is pinned to 1.26.4.
+#   TF 2.13.0 officially requires numpy<=1.24.3, but 1.26.4 works
+#   in practice and is required by JAX 0.4.31.
+#   The setup script reinstalls numpy after TF to preserve this version.
+# ============================================================
+
+# --- JAX (CPU) -----------------------------------------------
+jax[cpu]==0.4.31
+jaxlib==0.4.31
+
+# --- BlackJAX nested sampling (pinned commit) ----------------
+# WARNING: do NOT replace with a later commit — the PartitionedState
+# API was removed in subsequent commits on the nested_sampling branch.
+blackjax @ git+https://github.com/handley-lab/blackjax.git@dedbf11da33eb5ca286f6731e2c51f2b254b953f
+
+# --- TensorFlow (required for mlgw_bbh_jax / SEOBNRv5HM) ----
+tensorflow==2.13.0
+tf2jax==0.3.6
+
+# --- Gravitational-wave waveforms ----------------------------
+ripplegw==0.0.9
+
+# --- GW / Bayesian inference ---------------------------------
+bilby==2.5.0
+dynesty==2.1.5
+emcee==3.1.6
+
+# --- Nested sampling post-processing -------------------------
+anesthetic==2.9.3
+
+# --- JAX ecosystem -------------------------------------------
+chex==0.1.90
+optax==0.2.5
+jaxopt==0.8.5
+
+# --- Scientific computing ------------------------------------
+numpy==1.26.4
+scipy==1.17.1
+matplotlib==3.10.1
+pandas==2.2.3
+h5py>=3.0
+joblib>=1.3
+
+# --- Utilities -----------------------------------------------
+corner==2.2.3
+tqdm==4.67.1
