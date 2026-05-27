@@ -245,9 +245,12 @@ def psd_from_data(
         )
         # DC bin (target == 0) and out-of-range bins → inf
         psd_out = np.where(target > 0.0, np.exp(log_psd_interp), np.inf)
-        return jnp.array(target, dtype=jnp.float32), jnp.array(psd_out, dtype=jnp.float32)
+        # Do NOT force float32 — real-detector PSDs are ~1e-46 Hz^-1
+        # which underflows fp32's denormal floor. Let JAX honour the
+        # active precision (defaults float32; float64 with jax_enable_x64).
+        return jnp.asarray(target), jnp.asarray(psd_out)
 
-    return jnp.array(f, dtype=jnp.float32), jnp.array(pxx, dtype=jnp.float32)
+    return jnp.asarray(f), jnp.asarray(pxx)
 
 
 # ── Registry and dispatcher ───────────────────────────────────────────────────
