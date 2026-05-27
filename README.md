@@ -26,39 +26,59 @@ mlgw_bns_jax and mlgw_bbh_jax live under `gwjax/mlgw_jax/` and are loaded via `s
 
 ### Install from GitHub (pip — recommended)
 
+The repo is currently **private**, so a [GitHub Personal Access Token](https://github.com/settings/tokens?type=beta) with `Contents: read-only` is required. Embed it once into the URL:
+
 ```bash
+# Set the token as a shell variable (don't echo it into your history).
+export GH_TOKEN=$(< ~/.config/gwjax_pat.txt)   # or read -s -p "PAT: " GH_TOKEN
+
 # CPU only (laptops, macOS, plain Linux)
-pip install "gwjax @ git+https://github.com/saulo-albuquerque-phys/GWjax.git"
+pip install "gwjax @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWjax.git"
 
 # + real-data ingest (gwpy + GWOSC)
-pip install "gwjax[data] @ git+https://github.com/saulo-albuquerque-phys/GWjax.git"
+pip install "gwjax[data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWjax.git"
 
 # + NVIDIA GPU (CUDA 12)
-pip install "gwjax[gpu,data] @ git+https://github.com/saulo-albuquerque-phys/GWjax.git"
+pip install "gwjax[gpu,data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWjax.git"
 
 # + heavy ML waveform models (TensorFlow + tf2jax for SEOBNRv5HM / mlgw_bns_jax)
-pip install "gwjax[mlgw,data] @ git+https://github.com/saulo-albuquerque-phys/GWjax.git"
+pip install "gwjax[mlgw,data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWjax.git"
 ```
+
+> When the repo becomes public, drop `$GH_TOKEN@` from every URL.
 
 ### Google Colab quickstart (GPU runtime)
 
-Colab GPU runtimes ship with a CUDA-enabled JAX, so the `gpu` extra is **not** needed — just install the package itself:
+Colab GPU runtimes ship with a CUDA-enabled JAX, so the `gpu` extra is **not** needed. Two ways to provide the token:
+
+- **Colab Secrets** (recommended) — key icon 🔑 in the sidebar → add a secret called `GH_TOKEN` → toggle *Notebook access*.
+- One-off `getpass.getpass()` prompt — the cell below falls back to it if no secret is set.
 
 ```python
-!pip install -q "gwjax[data] @ git+https://github.com/saulo-albuquerque-phys/GWjax.git"
+import os, getpass
 
-import jax
+GH_TOKEN = None
+try:
+    from google.colab import userdata
+    GH_TOKEN = userdata.get("GH_TOKEN")
+except Exception:
+    pass
+if not GH_TOKEN:
+    GH_TOKEN = getpass.getpass("GitHub PAT: ")
+os.environ["GH_TOKEN"] = GH_TOKEN
+
+!pip install -q "gwjax[data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWjax.git"
+
+del os.environ["GH_TOKEN"]; del GH_TOKEN
+
+import jax, gwjax
 print(jax.devices())                       # → [CudaDevice(id=0), …]
-
-import gwjax
-grid = gwjax.TimeFrequencyGrid(duration=4.0, sampling_rate=2048.0,
-                               f_min=20.0, f_max=512.0)
+grid = gwjax.TimeFrequencyGrid(4.0, 2048.0, f_min=20.0, f_max=512.0)
 net  = gwjax.Network.from_names(["H1", "L1"], grid)
-net.generate_noise(seed=0)
-
-# Real GW150914 strain from GWOSC + Welch PSD from off-source noise
 gwjax.compat.attach_event_to_network(net, "GW150914", estimate_psd=True)
 ```
+
+The full ready-to-run version is in [`examples/gwjax_colab_pe.ipynb`](examples/gwjax_colab_pe.ipynb).
 
 ### Editable local install (development)
 
