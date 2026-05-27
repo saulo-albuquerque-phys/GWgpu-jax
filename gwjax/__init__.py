@@ -68,6 +68,10 @@ from gwjax.gwjax_samplers import (
     GWjaxNestedSampler,
     NestedSamplingResult,
 )
+from gwjax.gwjax_two_phase_sampler import (
+    GWjaxTwoPhaseNestedSampler,
+    TwoPhaseNestedSamplingResult,
+)
 
 
 # ── Lazy heavy imports (TF, gwpy) via PEP 562 module __getattr__ ─────────────
@@ -124,6 +128,8 @@ __all__ = [
     # samplers
     "GWjaxNestedSampler",
     "NestedSamplingResult",
+    "GWjaxTwoPhaseNestedSampler",
+    "TwoPhaseNestedSamplingResult",
     # lazy
     "GWjaxWaveformGenerator",
     "build_ripplegw_waveform_fn",
