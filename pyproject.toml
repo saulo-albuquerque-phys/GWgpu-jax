@@ -1,0 +1,142 @@
+# ============================================================
+# GWjax — packaging metadata
+# Build backend: Hatchling (modern, glob-aware excludes).
+# Install (Colab GPU runtime):
+#   !pip install -q "gwjax[data] @ git+https://github.com/saulo-albuquerque-phys/GWjax.git"
+# Install (local, editable, CPU):
+#   pip install -e ".[data]"
+# ============================================================
+
+[build-system]
+requires      = ["hatchling>=1.18"]
+build-backend = "hatchling.build"
+
+
+[project]
+name            = "gwjax"
+version         = "0.1.0"
+description     = "JAX-based gravitational-wave parameter-estimation toolkit (waveforms, interferometer networks, nested sampling)."
+readme          = "README.md"
+requires-python = ">=3.10"
+license         = { text = "MIT" }
+authors         = [
+    { name = "Saulo Soares de Albuquerque Filho", email = "saulosoaresfisica@gmail.com" },
+]
+keywords        = [
+    "gravitational-waves", "jax", "parameter-estimation",
+    "nested-sampling", "ligo", "virgo", "kagra",
+]
+classifiers     = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+
+# ── Runtime dependencies ──────────────────────────────────────────────────────
+# Loose bounds on JAX/jaxlib so we don't fight Colab's pre-installed wheels.
+# BlackJAX is pinned to the handley-lab nested-sampling commit (the API on
+# subsequent commits is incompatible — do NOT bump without testing).
+dependencies = [
+    "jax>=0.4.31",
+    "jaxlib>=0.4.31",
+    "numpy>=1.26",
+    "scipy>=1.13",
+    "h5py>=3.10",
+    "matplotlib>=3.7",
+    "ripplegw>=0.0.9",
+    "blackjax @ git+https://github.com/handley-lab/blackjax.git@dedbf11da33eb5ca286f6731e2c51f2b254b953f",
+]
+
+
+[project.optional-dependencies]
+# Colab / Linux + NVIDIA GPU — pulls jax-cuda12 plugin packages.
+# Colab GPU runtimes already ship JAX with CUDA support; this extra is
+# only needed on plain Linux boxes where JAX was installed CPU-only.
+gpu  = ["jax[cuda12]>=0.4.31"]
+
+# Real-data ingest via gwpy + GWOSC.
+data = ["gwpy>=3.0", "gwosc>=0.7"]
+
+# Heavy ML-based waveform models (mlgw_bbh_jax / mlgw_bns_jax via TF2JAX).
+mlgw = ["tensorflow>=2.13,<2.16", "tf2jax>=0.3.6"]
+
+# Auxiliary samplers and post-processing tools.
+samplers = [
+    "bilby>=2.5",
+    "dynesty>=2.1",
+    "emcee>=3.1",
+    "anesthetic>=2.9",
+    "corner>=2.2",
+    "tqdm>=4.66",
+]
+
+# Convenience meta-extra for users who want everything except GPU wheels.
+all = [
+    "gwpy>=3.0", "gwosc>=0.7",
+    "tensorflow>=2.13,<2.16", "tf2jax>=0.3.6",
+    "bilby>=2.5", "dynesty>=2.1", "emcee>=3.1",
+    "anesthetic>=2.9", "corner>=2.2", "tqdm>=4.66",
+]
+
+dev = ["pytest>=7", "pytest-xdist>=3", "hatchling>=1.18"]
+
+
+[project.urls]
+Homepage   = "https://github.com/saulo-albuquerque-phys/GWjax"
+Repository = "https://github.com/saulo-albuquerque-phys/GWjax"
+Issues     = "https://github.com/saulo-albuquerque-phys/GWjax/issues"
+
+
+# ── Build configuration ──────────────────────────────────────────────────────
+# Ship the `gwjax/` package plus the runtime-needed mlgw subpackages, but
+# *exclude* the heavy research artefacts (paper drafts, training scripts,
+# docs builds — about 700 MB total inside mlgw_bbh_jax/).
+[tool.hatch.build.targets.wheel]
+packages = ["gwjax"]
+
+[tool.hatch.build]
+include = [
+    "gwjax/**",
+    "README.md",
+    "LICENSE*",
+]
+exclude = [
+    # Local virtual envs (in repo root, but be defensive)
+    "venv/**",
+    "test_venv_mlgw/**",
+
+    # Caches & build artefacts
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/.pytest_cache/**",
+    "**/.ipynb_checkpoints/**",
+
+    # mlgw_bbh_jax research artefacts (NOT needed at runtime)
+    "gwjax/mlgw_jax/mlgw_bbh_jax/paper/**",
+    "gwjax/mlgw_jax/mlgw_bbh_jax/paper_NN/**",
+    "gwjax/mlgw_jax/mlgw_bbh_jax/paper_jax/**",
+    "gwjax/mlgw_jax/mlgw_bbh_jax/dev/**",
+    "gwjax/mlgw_jax/mlgw_bbh_jax/docs/**",
+    "gwjax/mlgw_jax/mlgw_bbh_jax/examples/**",
+    "gwjax/mlgw_jax/mlgw_bbh_jax/bin/**",
+
+    # Repo-level images and notebooks
+    "*.png",
+    "*.jpg",
+    "*.ipynb",
+]
+
+# Include non-Python assets (model weights, READMEs inside subpackages).
+[tool.hatch.build.targets.wheel.shared-data]
+# Nothing here; we ship everything as part of the gwjax package tree.
+
+[tool.hatch.metadata]
+allow-direct-references = true   # required for the blackjax git URL
