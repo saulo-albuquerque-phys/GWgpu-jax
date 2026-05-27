@@ -113,7 +113,6 @@ def build_ripplegw_waveform_fn(
     applied here; they are handled by the projection layer inside the
     sampler.
     """
-    from ripplegw import ms_to_Mc_eta
     from ripplegw.waveforms import (
         IMRPhenomD, IMRPhenomXAS, IMRPhenomD_NRTidalv2, IMRPhenomPv2,
     )
@@ -131,7 +130,11 @@ def build_ripplegw_waveform_fn(
     gen = _MAP[approximant]
 
     def waveform_fn(params, freqs):
-        Mc, eta = ms_to_Mc_eta(jnp.stack([params["m1"], params["m2"]]))
+        # Inline (m1, m2) → (Mc, eta); ripplegw's helper moved around the
+        # 0.0.9 → 0.0.10 boundary so we don't import it.
+        m1, m2 = params["m1"], params["m2"]
+        Mc  = (m1 * m2) ** (3.0 / 5.0) / (m1 + m2) ** (1.0 / 5.0)
+        eta = m1 * m2 / (m1 + m2) ** 2
         theta = jnp.stack([
             Mc, eta,
             params["chi_1"], params["chi_2"],

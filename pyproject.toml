@@ -53,6 +53,9 @@ dependencies = [
     "scipy>=1.13",
     "h5py>=3.10",
     "matplotlib>=3.7",
+    # ripplegw's top-level helper layout changed between 0.0.9 and 0.0.10;
+    # we no longer import ms_to_Mc_eta from it (inlined inside gwjax) but
+    # IMRPhenom* waveform imports must still match the package layout.
     "ripplegw>=0.0.9",
     "blackjax @ git+https://github.com/handley-lab/blackjax.git@dedbf11da33eb5ca286f6731e2c51f2b254b953f",
 ]

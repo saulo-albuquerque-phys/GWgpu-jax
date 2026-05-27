@@ -96,8 +96,10 @@ import jax.numpy as jnp
 
 from gwjax.gwjax_timefrequencydomain_utils import TimeFrequencyGrid
 
-# ── ripplegw mass-conversion utility ─────────────────────────────────────────
-from ripplegw import ms_to_Mc_eta
+# ── ripplegw waveforms ───────────────────────────────────────────────────────
+# Note: the (m1, m2) → (Mc, eta) helper used to live at ``ripplegw.ms_to_Mc_eta``
+# but its import path moved between 0.0.9 and 0.0.10, so we inline the math
+# below rather than depend on a specific upstream layout.
 from ripplegw.waveforms import (
     IMRPhenomD,
     IMRPhenomXAS,
@@ -178,10 +180,12 @@ class GWjaxWaveformGenerator:
         return grid
 
     @staticmethod
-    def _to_Mc_eta(m1: float, m2: float):
-        """Convert component masses to (Mchirp, eta) — JAX-compatible."""
-        ms = jnp.array([float(m1), float(m2)])
-        return ms_to_Mc_eta(ms)  # returns (Mchirp, eta)
+    def _to_Mc_eta(m1, m2):
+        """Convert component masses to (Mchirp, eta) — JAX-traceable."""
+        m1, m2 = jnp.asarray(m1), jnp.asarray(m2)
+        Mc  = (m1 * m2) ** (3.0 / 5.0) / (m1 + m2) ** (1.0 / 5.0)
+        eta = m1 * m2 / (m1 + m2) ** 2
+        return Mc, eta
 
     # ── single-event interface ────────────────────────────────────────────────
 
@@ -308,9 +312,8 @@ class GWjaxWaveformGenerator:
             m2 = theta_batch[:, 1]
             chi_1 = theta_batch[:, 2]
             chi_2 = theta_batch[:, 3]
-            Mc, eta = jax.vmap(ms_to_Mc_eta)(
-                jnp.stack([m1, m2], axis=1)
-            )  # each (N,)
+            Mc  = (m1 * m2) ** (3.0 / 5.0) / (m1 + m2) ** (1.0 / 5.0)
+            eta = m1 * m2 / (m1 + m2) ** 2
             N = theta_batch.shape[0]
             ones = jnp.ones(N)
             theta_full = jnp.stack([
