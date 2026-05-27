@@ -104,7 +104,7 @@ def setup_real():
     return network, grid, None
 
 
-def make_sampler(network, fixed_params, seed: int):
+def make_sampler(network, fixed_params, seed: int, two_phase: bool = False):
     """Build a sampler with broad uniform priors on the marginalised params."""
     waveform_fn = gwjax.build_ripplegw_waveform_fn("IMRPhenomD", f_ref=20.0)
 
@@ -119,7 +119,9 @@ def make_sampler(network, fixed_params, seed: int):
         "tc":          (-0.05, 0.05),
     }
 
-    sampler = gwjax.GWjaxNestedSampler(
+    cls = (gwjax.GWjaxTwoPhaseNestedSampler if two_phase
+           else gwjax.GWjaxNestedSampler)
+    sampler = cls(
         network=network,
         waveform_fn=waveform_fn,
         param_bounds=param_bounds,
@@ -203,6 +205,21 @@ def main():
     parser.add_argument("--num-posterior",    type=int, default=2000)
     parser.add_argument("--seed",             type=int, default=0)
     parser.add_argument("--corner-plot",      type=str, default="corner.png")
+    # ── two-phase NS (bulk + accurate tail) ─────────────────────────────
+    parser.add_argument("--two-phase", action="store_true",
+                        help="Use GWjaxTwoPhaseNestedSampler: a fast batch-delete "
+                             "phase 1 followed by a Skilling-classical phase 2.")
+    parser.add_argument("--phase1-num-delete", type=int, default=None,
+                        help="Particles deleted per phase-1 iteration. "
+                             "Default: num_live // 20.")
+    parser.add_argument("--phase1-delta-logz-threshold", type=float, default=-1.0,
+                        help="Switch from phase 1 to phase 2 when "
+                             "logZ_live - logZ < this value. Default -1.0 "
+                             "(live points still hold ~37%% of total Z).")
+    parser.add_argument("--phase1-max-iterations", type=int, default=1000)
+    parser.add_argument("--phase2-num-delete", type=int, default=1,
+                        help="Particles deleted per phase-2 iteration. "
+                             "Default 1 (classical Skilling, unbiased).")
     args = parser.parse_args()
 
     # JAX setup — switch to float64 for likelihood accuracy.
@@ -224,32 +241,61 @@ def main():
 
     # ── 2. Sampler ───────────────────────────────────────────────────────
     fixed_params = {"chi_1": 0.0, "chi_2": 0.0, "phi_c": 0.0}
-    sampler = make_sampler(network, fixed_params, seed=args.seed)
+    sampler = make_sampler(network, fixed_params, seed=args.seed,
+                           two_phase=args.two_phase)
     d = len(sampler.param_bounds)
     print(f"\nSampling dimension: {d}")
     print(f"Free parameters   : {list(sampler.param_bounds)}")
     print(f"Fixed parameters  : {fixed_params}")
 
     # ── 3. Run NS ────────────────────────────────────────────────────────
-    print(
-        f"\nRunning blackjax-ns: num_live={args.num_live}, "
-        f"num_inner_steps={args.num_inner_steps}, max_iters={args.max_iterations}"
-    )
     t0 = time.perf_counter()
-    result = sampler.run(
-        rng_key=jax.random.PRNGKey(args.seed),
-        num_live=args.num_live,
-        num_inner_steps=args.num_inner_steps,
-        num_delete=args.num_delete,
-        max_iterations=args.max_iterations,
-        log_dlogz_target=args.log_dlogz_target,
-        num_posterior_samples=args.num_posterior,
-        verbose=True,
-    )
+    if args.two_phase:
+        phase1_num_delete = (args.phase1_num_delete
+                             if args.phase1_num_delete is not None
+                             else max(1, args.num_live // 20))
+        print(
+            f"\nRunning two-phase NS: num_live={args.num_live}, "
+            f"phase1_num_delete={phase1_num_delete} "
+            f"(switch at Δlog Z < {args.phase1_delta_logz_threshold}), "
+            f"phase2_num_delete={args.phase2_num_delete} "
+            f"(target Δlog Z < {args.log_dlogz_target})"
+        )
+        result = sampler.run_two_phase(
+            rng_key                      = jax.random.PRNGKey(args.seed),
+            num_live                     = args.num_live,
+            num_inner_steps              = args.num_inner_steps,
+            phase1_num_delete            = phase1_num_delete,
+            phase1_delta_logz_threshold  = args.phase1_delta_logz_threshold,
+            phase1_max_iterations        = args.phase1_max_iterations,
+            phase2_num_delete            = args.phase2_num_delete,
+            phase2_max_iterations        = args.max_iterations,
+            log_dlogz_target             = args.log_dlogz_target,
+            num_posterior_samples        = args.num_posterior,
+            verbose                      = True,
+        )
+    else:
+        print(
+            f"\nRunning blackjax-ns: num_live={args.num_live}, "
+            f"num_inner_steps={args.num_inner_steps}, max_iters={args.max_iterations}"
+        )
+        result = sampler.run(
+            rng_key=jax.random.PRNGKey(args.seed),
+            num_live=args.num_live,
+            num_inner_steps=args.num_inner_steps,
+            num_delete=args.num_delete,
+            max_iterations=args.max_iterations,
+            log_dlogz_target=args.log_dlogz_target,
+            num_posterior_samples=args.num_posterior,
+            verbose=True,
+        )
     elapsed = time.perf_counter() - t0
 
     # ── 4. Report ────────────────────────────────────────────────────────
     print(f"\nNS finished in {elapsed:.1f} s after {result.n_iterations} iterations.")
+    if args.two_phase:
+        print(f"  phase 1 iters = {result.phase1_iterations}")
+        print(f"  phase 2 iters = {result.phase2_iterations}")
     print(f"  log Z  = {result.logZ:+.3f} ± {result.logZ_err:.3f}")
     print(f"  ESS    = {result.ess:.1f}")
 
