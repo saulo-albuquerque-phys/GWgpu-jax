@@ -49,6 +49,7 @@ Quickstart
 
 from __future__ import annotations
 
+import time
 from typing import Callable, NamedTuple, Optional
 
 import jax
@@ -205,9 +206,29 @@ class GWjaxTwoPhaseNestedSampler(GWjaxNestedSampler):
                 f"=== Phase 1 (bulk): num_delete={phase1_num_delete}, "
                 f"target Δlog Z < {phase1_delta_logz_threshold} ==="
             )
+            print(
+                "  JIT-compiling phase-1 kernel… "
+                "(blackjax-ns NSS step; one-off, can take 30–90 s on CPU)",
+                flush=True,
+            )
+
+        t_compile = time.perf_counter()
         while i1 < phase1_max_iterations:
             k_p1, kk = jax.random.split(k_p1)
             state, info = step1(kk, state)
+            if i1 == 0 and verbose:
+                # Block until the first iteration's arrays materialise, then
+                # report the compile + first-step wall-clock so the user can
+                # tell compile vs steady-state apart.
+                jax.tree_util.tree_map(
+                    lambda x: x.block_until_ready() if hasattr(x, 'block_until_ready') else x,
+                    state,
+                )
+                print(
+                    f"  → compile + first step finished in "
+                    f"{time.perf_counter()-t_compile:.1f} s; subsequent steps are fast.",
+                    flush=True,
+                )
             dead.append(info)
 
             delta_logZ = float(state.logZ_live - state.logZ)
@@ -241,9 +262,26 @@ class GWjaxTwoPhaseNestedSampler(GWjaxNestedSampler):
                 f"=== Phase 2 (tail): num_delete={phase2_num_delete}, "
                 f"target Δlog Z < {log_dlogz_target} ==="
             )
+            print(
+                "  JIT-compiling phase-2 kernel… "
+                "(different num_delete → separate XLA program)",
+                flush=True,
+            )
+
+        t_compile = time.perf_counter()
         while i2 < phase2_max_iterations:
             k_p2, kk = jax.random.split(k_p2)
             state, info = step2(kk, state)
+            if i2 == 0 and verbose:
+                jax.tree_util.tree_map(
+                    lambda x: x.block_until_ready() if hasattr(x, 'block_until_ready') else x,
+                    state,
+                )
+                print(
+                    f"  → compile + first step finished in "
+                    f"{time.perf_counter()-t_compile:.1f} s.",
+                    flush=True,
+                )
             dead.append(info)
 
             delta_logZ = float(state.logZ_live - state.logZ)

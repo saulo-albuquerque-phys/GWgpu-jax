@@ -323,9 +323,27 @@ class GWjaxNestedSampler:
 
         dead: list = []
         i = 0
+        if verbose:
+            print(
+                "JIT-compiling NS kernel… "
+                "(one-off, can take 30–90 s on CPU; subsequent iterations are fast)",
+                flush=True,
+            )
+        import time as _time
+        t_compile = _time.perf_counter()
         while i < max_iterations:
             k_loop, k_step = jax.random.split(k_loop)
             state, info    = step(k_step, state)
+            if i == 0 and verbose:
+                jax.tree_util.tree_map(
+                    lambda x: x.block_until_ready() if hasattr(x, 'block_until_ready') else x,
+                    state,
+                )
+                print(
+                    f"  → compile + first step finished in "
+                    f"{_time.perf_counter()-t_compile:.1f} s.",
+                    flush=True,
+                )
             dead.append(info)
 
             delta_logZ = float(state.logZ_live - state.logZ)
