@@ -41,12 +41,14 @@ classifiers     = [
 ]
 
 # ── Runtime dependencies ──────────────────────────────────────────────────────
-# Loose bounds on JAX/jaxlib so we don't fight Colab's pre-installed wheels.
-# BlackJAX is pinned to the handley-lab nested-sampling commit (the API on
-# subsequent commits is incompatible — do NOT bump without testing).
+# JAX is pinned to the 0.4.x line: the handley-lab/blackjax nested-sampling
+# fork was built against jax 0.4.x, and the Colab GPU image's CUDA plugin
+# (jax_cuda12_plugin 0.5.x) is also incompatible with jaxlib 0.10+
+# (register_custom_type_id_handler was removed there). The upper bound
+# avoids breaking Colab installs.
 dependencies = [
-    "jax>=0.4.31",
-    "jaxlib>=0.4.31",
+    "jax>=0.4.31,<0.5",
+    "jaxlib>=0.4.31,<0.5",
     "numpy>=1.26",
     "scipy>=1.13",
     "h5py>=3.10",
@@ -58,9 +60,9 @@ dependencies = [
 
 [project.optional-dependencies]
 # Colab / Linux + NVIDIA GPU — pulls jax-cuda12 plugin packages.
-# Colab GPU runtimes already ship JAX with CUDA support; this extra is
+# Colab GPU runtimes already ship a compatible CUDA plugin; this extra is
 # only needed on plain Linux boxes where JAX was installed CPU-only.
-gpu  = ["jax[cuda12]>=0.4.31"]
+gpu  = ["jax[cuda12]>=0.4.31,<0.5"]
 
 # Real-data ingest via gwpy + GWOSC.
 data = ["gwpy>=3.0", "gwosc>=0.7"]
