@@ -130,18 +130,33 @@ def make_sampler(network, fixed_params, seed: int):
 
 
 def summarise_posterior(result, sampler, true_params=None):
-    """Print median ± 1σ for every sampled parameter."""
+    """Print median ± 1σ for every sampled parameter; flag degenerate columns."""
     print("\nPosterior summary (median, 68% credible interval):")
     print(f"  {'param':12s}  {'median':>10s}  {'-1σ':>8s}  {'+1σ':>8s}  truth")
+    degenerate = []
     for name in sampler.param_bounds:
         s = np.asarray(result.posterior_samples[name])
         lo, mid, hi = np.percentile(s, [16, 50, 84])
+        if (hi - lo) < 1e-12 * max(abs(mid), 1.0):
+            degenerate.append(name)
         truth_str = f"{true_params[name]:+.3f}" if true_params and name in true_params else "—"
         print(f"  {name:12s}  {mid:+10.3f}  {mid-lo:8.3f}  {hi-mid:8.3f}  {truth_str}")
 
+    if degenerate:
+        print(
+            f"\n⚠  posterior columns collapsed (no spread): {degenerate}\n"
+            f"   ESS={result.ess:.1f}  →  NS likely didn't converge.\n"
+            f"   Re-run with more live points or more inner steps, e.g.:\n"
+            f"     --num-live 800 --num-inner-steps 50 --max-iterations 5000"
+        )
+
 
 def plot_corner(result, sampler, true_params, outfile: str):
-    """Save a corner plot to ``outfile`` (if `corner` is installed)."""
+    """Save a corner plot to ``outfile`` (if `corner` is installed).
+
+    Always passes ``range=`` derived from the prior bounds so the plot
+    succeeds even when posterior columns have collapsed (ESS≈1).
+    """
     try:
         import corner  # type: ignore
         import matplotlib
@@ -151,12 +166,16 @@ def plot_corner(result, sampler, true_params, outfile: str):
         print("\n(`corner`/`matplotlib` not installed — skipping plot.)")
         return
 
-    names = list(sampler.param_bounds.keys())
-    data  = np.column_stack([np.asarray(result.posterior_samples[n]) for n in names])
-    truths = ([true_params[n] for n in names] if true_params else None)
+    names  = list(sampler.param_bounds.keys())
+    data   = np.column_stack([np.asarray(result.posterior_samples[n]) for n in names])
+    truths = [true_params[n] for n in names] if true_params else None
+    # Force the plot range to the prior bounds so corner never complains
+    # about degenerate columns and so the truth is always visible.
+    plot_range = [sampler.param_bounds[n] for n in names]
 
     fig = corner.corner(
         data, labels=names, truths=truths,
+        range=plot_range,
         quantiles=[0.16, 0.5, 0.84], show_titles=True,
         title_kwargs={"fontsize": 10},
     )
@@ -174,10 +193,12 @@ def main():
                       help="Inject a synthetic IMRPhenomD signal (default).")
     mode.add_argument("--real", action="store_true",
                       help="Fetch GW150914 strain from GWOSC (needs [data] extra).")
-    parser.add_argument("--num-live",         type=int, default=400)
-    parser.add_argument("--num-inner-steps",  type=int, default=25)
+    parser.add_argument("--num-live",         type=int, default=500)
+    # 5*d is a common rule of thumb for NSS inner steps; 40 covers the 8-D
+    # default parameter set comfortably.
+    parser.add_argument("--num-inner-steps",  type=int, default=40)
     parser.add_argument("--num-delete",       type=int, default=1)
-    parser.add_argument("--max-iterations",   type=int, default=3000)
+    parser.add_argument("--max-iterations",   type=int, default=5000)
     parser.add_argument("--log-dlogz-target", type=float, default=-3.0)
     parser.add_argument("--num-posterior",    type=int, default=2000)
     parser.add_argument("--seed",             type=int, default=0)
