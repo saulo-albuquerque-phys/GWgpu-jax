@@ -459,9 +459,17 @@ class Interferometer:
     ) -> jnp.ndarray:
         """Compute the arrival-time delay relative to the geocenter [s].
 
-        A **positive** value means the signal arrives *after* the geocenter
-        (the detector is further from the source in the direction of
-        propagation).
+        Returns ``Δt = t_det − t_geo`` for a plane wave from sky direction
+        (ra, dec). A **positive** value means the signal arrives *after* the
+        geocenter; a **negative** value means the detector is closer to the
+        source in the propagation direction and receives the signal *before*
+        the geocenter.
+
+        Combined with the FD shift ``exp(−2πi · f · Δt)`` in
+        :func:`gwjax.gwjax_likelihood_utils.waveform_projection_fd`, this
+        convention reproduces the standard bilby / LAL detector projection:
+
+            h_det(f) = h_geo(f) · exp(−2πi · f · Δt(ra, dec)).
 
         Parameters
         ----------
@@ -470,7 +478,7 @@ class Interferometer:
 
         Returns
         -------
-        dt : scalar JAX array [s]
+        Δt : scalar JAX array [s]
         """
         cos_dec = jnp.cos(dec)
         sin_dec = jnp.sin(dec)
@@ -480,7 +488,9 @@ class Interferometer:
             cos_dec * jnp.sin(ra_ecef),
             sin_dec,
         ])
-        return jnp.dot(self.vertex, n_ecef) / _C_LIGHT
+        # Δt = t_det − t_geo = −(n̂ · vertex) / c
+        # (Detector closer to source → n̂·vertex > 0 → Δt < 0 → signal earlier.)
+        return -jnp.dot(self.vertex, n_ecef) / _C_LIGHT
 
     # ── Waveform projection ────────────────────────────────────────────────────
 
