@@ -392,8 +392,13 @@ class Interferometer:
         ra   : float [rad]  Right ascension of the source.
         dec  : float [rad]  Declination of the source.
         psi  : float [rad]  Gravitational-wave polarisation angle.
-        gmst : float [rad]  Greenwich Mean Sidereal Time (converts RA to ECEF).
-                            Defaults to 0 (appropriate for geocentric GCRF frame).
+        gmst : float [rad]  Greenwich Mean Sidereal Time. Pass the trigger
+                            GMST (as written to ``network.gmst`` by
+                            :func:`gwjax.compat.attach_event_to_network`)
+                            to interpret ``ra`` in the celestial J2000 frame.
+                            Defaults to 0 (Earth-rotating ECEF frame —
+                            appropriate for synthetic injections where
+                            inject and recover cancel by symmetry).
 
         Returns
         -------
@@ -410,6 +415,16 @@ class Interferometer:
             n = (−sin(dec)·cos(ra−gmst),  −sin(dec)·sin(ra−gmst),  cos(dec))
 
         The detector tensor is D = (x̂⊗x̂ − ŷ⊗ŷ)/2.
+
+        **ψ zero-point convention.** The polarisation angle ``ψ`` here is
+        measured from the x-arm of the detector in the local frame. The
+        bilby/LAL/SHARPy convention uses a bisector-based zero point, which
+        differs from ours by a constant rotation of ≈ π/4 in ``ψ``. The
+        matched-filter magnitude (and therefore optimal SNR, masses,
+        distance, sky modulo this offset) is unaffected — only the
+        marginal ``ψ`` posterior gets shifted by that constant. To compare
+        a recovered ``ψ`` directly with a GWTC ``psi`` value, add π/4 and
+        reduce mod π.
         """
         # Rotate arm vectors from ECEF to geocentric celestial frame
         cos_gmst = jnp.cos(gmst)

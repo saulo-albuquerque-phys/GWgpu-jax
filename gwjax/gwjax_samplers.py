@@ -178,8 +178,15 @@ class GWjaxNestedSampler:
     fixed_params : dict[str, float] or None
         Constant parameter values that are not sampled. Merged into the
         particle dict before each waveform call.
-    gmst : float
-        Greenwich Mean Sidereal Time [rad]. Defaults to 0.
+    gmst : float, optional
+        Greenwich Mean Sidereal Time [rad].
+
+        * ``None`` (recommended): use ``network.gmst`` — set automatically
+          by :func:`gwjax.compat.attach_event_to_network` to GMST(trigger),
+          which puts ``ra`` in the celestial (J2000) frame.
+        * float: override explicitly. Use ``0.0`` for synthetic injections,
+          where ra is the Earth-rotating-ECEF angle that cancels in inject-
+          and-recover.
     """
 
     def __init__(
@@ -188,7 +195,7 @@ class GWjaxNestedSampler:
         waveform_fn:    Callable,
         param_bounds:   dict,
         fixed_params:   dict | None = None,
-        gmst:           float = 0.0,
+        gmst:           float | None = None,
     ) -> None:
         self.network      = network
         # Accept either a raw (params, grid_array) -> (hp, hc) callable
@@ -202,7 +209,10 @@ class GWjaxNestedSampler:
         self.waveform_fn  = waveform_fn
         self.param_bounds = dict(param_bounds)
         self.fixed_params = dict(fixed_params or {})
-        self.gmst         = float(gmst)
+        # If user didn't pass gmst, default to whatever the network carries
+        # (set by ``attach_event_to_network`` for real-data PE, or 0.0
+        # otherwise for synthetic injections).
+        self.gmst = float(network.gmst) if gmst is None else float(gmst)
 
         # The projection layer needs ra, dec, psi, tc.
         provided = set(self.param_bounds) | set(self.fixed_params)

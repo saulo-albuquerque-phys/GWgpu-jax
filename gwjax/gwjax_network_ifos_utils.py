@@ -91,6 +91,14 @@ class Network:
 
         self._ifos: list[Interferometer] = ifos
 
+        # GMST [rad] at trigger time, written by
+        # ``gwjax.compat.attach_event_to_network``. Samplers default to this
+        # value when ``gmst=None`` is passed at construction time. Stays at
+        # 0.0 for synthetic-injection workflows where no real GPS trigger
+        # exists — the sky parameter ``ra`` is then in the Earth-rotating
+        # frame, which cancels in inject-and-recover by symmetry.
+        self.gmst: float | jnp.ndarray = 0.0
+
     # ── Factory ───────────────────────────────────────────────────────────────
 
     @classmethod

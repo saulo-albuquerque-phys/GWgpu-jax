@@ -40,12 +40,59 @@ will fail at call time.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Union
 
 import numpy as np
 import jax.numpy as jnp
+
+
+# ── Greenwich Mean Sidereal Time at a GPS time ────────────────────────────────
+
+def gmst_from_gps(gps_time: float) -> float:
+    """Greenwich Mean Sidereal Time [rad] at a GPS epoch.
+
+    Ported from the SHARPy reference (Cornish & Littenberg, IAU 2006) — same
+    formula bilby/LAL use. JAX-pure float arithmetic, no tracer-incompatible
+    rounding tricks (the ns-precision branch is replaced by a single
+    `floor(gps_time)` since GW-event triggers are quoted to ms at best).
+
+    Parameters
+    ----------
+    gps_time : float
+        Trigger GPS time [s].
+
+    Returns
+    -------
+    gmst : float [rad]
+        Greenwich Mean Sidereal Time, **mod 2π**.
+    """
+    # Pick the leap-second count for the relevant GPS epoch (post-2017 = 34).
+    # Branchless: use the historical step at GPS 1119744017 (2014-07-01) since
+    # any LIGO event after O1 (2015-09-12) has 34 leap seconds anyway.
+    nleap = 34.0 if gps_time >= 1119744017.0 else 33.0
+
+    # GPS → Julian Date.
+    dot = 29224.0 + (gps_time - (nleap - 19.0)) / 86400.0
+    jd  = dot + 2415020.5
+
+    # Sub-second nanos (sec-level precision is enough for our use).
+    gps_ns = gps_time - math.floor(gps_time)
+
+    t_hi = (jd - 2451545.0) / 36525.0
+    t_lo = gps_ns / (36525.0 * 86400.0)
+    t    = t_hi + t_lo
+
+    sidereal_time  = (-6.2e-6 * t + 0.093104) * t * t + 67310.54841
+    sidereal_time += 8640184.812866 * t_lo
+    sidereal_time += 3155760000.0   * t_lo
+    sidereal_time += 8640184.812866 * t_hi
+    sidereal_time += 3155760000.0   * t_hi
+
+    gmst_rad = sidereal_time * math.pi / 43200.0
+    return float(gmst_rad % (2.0 * math.pi))
 
 
 # ── Lazy gwpy import ──────────────────────────────────────────────────────────
@@ -555,7 +602,7 @@ def attach_event_to_network(
     for det, fp in deglitched_files.items():
         timeseries_dict[det] = read_strain_file(fp)
 
-    return attach_data_to_network(
+    populated = attach_data_to_network(
         network,
         timeseries_dict,
         event_gps=info.gps_time,
@@ -565,3 +612,12 @@ def attach_event_to_network(
         psd_segment_duration=psd_segment_duration,
         psd_offset=psd_offset,
     )
+
+    # Write GMST(trigger) onto the network so the sampler defaults its
+    # antenna-pattern + time-delay calculations to the **celestial** frame
+    # (matching bilby/LAL/SHARPy). Without this, ``ra`` would live in an
+    # Earth-rotating ECEF frame and be offset from the catalogued J2000 RA
+    # by exactly the trigger GMST.
+    network.gmst = gmst_from_gps(info.gps_time)
+
+    return populated
