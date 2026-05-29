@@ -87,8 +87,18 @@ _WGS84_E2 = 6.694_379_990_14e-3   # first eccentricity squared
 #   arm_len  : arm length [m]
 #   psd      : default PSD model name
 _KNOWN_DETECTORS: dict[str, dict] = {
+    # Azimuths from North, clockwise (the convention `_azimuth_to_ecef` uses).
+    # Matches the LAL canonical orientation:
+    #   LAL_LHO_4K_ARM_X_AZIMUTH_RAD = 5.6549 rad = 324.0006°  (bisector at 279°)
+    #   LAL_LHO_4K_ARM_Y_AZIMUTH_RAD = 4.0841 rad = 234.0006°
+    # SHARPy's H1 ``gamma = 170.9969`` is the same bisector measured from
+    # East counter-clockwise (171° E-CCW = 279° N-CW), so they agree once the
+    # arm-direction convention is consistent. The previous entry
+    # (125.9994, 215.9994) placed H1's bisector at 171° N-CW — physically
+    # rotated 108° from LAL — which gave a wrong antenna pattern and made
+    # the matched filter on real H1+L1 data prefer the mirror sky arc.
     "H1": dict(lat=46.455172,  lon=-119.407725, elev=142.554,
-               xarm_az=125.9994, yarm_az=215.9994, arm_len=3995.1,  psd="aLIGO"),
+               xarm_az=324.0006, yarm_az=234.0006, arm_len=3995.1,  psd="aLIGO"),
     "L1": dict(lat=30.562894,  lon=-90.774234,  elev=-6.574,
                xarm_az=197.7165, yarm_az=287.7165, arm_len=3994.5,  psd="aLIGO"),
     "V1": dict(lat=43.631453,  lon=10.504423,   elev=51.884,
@@ -98,9 +108,9 @@ _KNOWN_DETECTORS: dict[str, dict] = {
     # Einstein Telescope: 10 km arms, 60° opening angle, Sardinia placeholder
     "ET": dict(lat=40.522,     lon=9.425,       elev=0.0,
                xarm_az=70.5674, yarm_az=130.5674, arm_len=10000.0,  psd="ET_D"),
-    # Cosmic Explorer: 20 km arms, approximate US site
+    # Cosmic Explorer: 20 km arms, LHO-placeholder geometry (LAL azimuths)
     "CE": dict(lat=46.455172,  lon=-119.407725, elev=142.554,
-               xarm_az=125.9994, yarm_az=215.9994, arm_len=20000.0, psd="CE"),
+               xarm_az=324.0006, yarm_az=234.0006, arm_len=20000.0, psd="CE"),
 }
 
 
