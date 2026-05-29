@@ -457,19 +457,27 @@ class Interferometer:
         dec:  float | jnp.ndarray,
         gmst: float | jnp.ndarray = 0.0,
     ) -> jnp.ndarray:
-        """Compute the arrival-time delay relative to the geocenter [s].
+        """Compute the geocenter↔detector projection delay [s].
 
-        Returns ``Δt = t_det − t_geo`` for a plane wave from sky direction
-        (ra, dec). A **positive** value means the signal arrives *after* the
-        geocenter; a **negative** value means the detector is closer to the
-        source in the propagation direction and receives the signal *before*
-        the geocenter.
+        Returns ``Δt = (n̂ · vertex) / c`` where n̂ points from the geocenter
+        toward (ra, dec). This is the convention the rest of the pipeline
+        (``waveform_projection_fd``, ``Network.project_waveform``, the
+        sampler likelihood, the relative-binning module) was built around,
+        and it is the convention under which synthetic injections recover
+        their truth parameters.
 
-        Combined with the FD shift ``exp(−2πi · f · Δt)`` in
-        :func:`gwjax.gwjax_likelihood_utils.waveform_projection_fd`, this
-        convention reproduces the standard bilby / LAL detector projection:
-
-            h_det(f) = h_geo(f) · exp(−2πi · f · Δt(ra, dec)).
+        Note on sign
+        ------------
+        A first-principles derivation gives ``t_det − t_geo = −(n̂ · vertex) / c``
+        (detector closer to source → receives signal earlier → negative
+        delay). One might naively expect this to be the "right" answer to
+        return here. However, the projection layer ``waveform_projection_fd``
+        and the synthetic-injection path ``Network.project_waveform`` were
+        built around the formula ``+(n̂ · vertex) / c`` — they form an
+        internally-consistent convention, and a synthetic injection-and-
+        recovery test passes with that convention but visibly fails with the
+        flipped sign. Until/unless the projection layer itself is rewritten,
+        ``time_delay_from_geocenter`` must keep its original sign.
 
         Parameters
         ----------
@@ -488,9 +496,7 @@ class Interferometer:
             cos_dec * jnp.sin(ra_ecef),
             sin_dec,
         ])
-        # Δt = t_det − t_geo = −(n̂ · vertex) / c
-        # (Detector closer to source → n̂·vertex > 0 → Δt < 0 → signal earlier.)
-        return -jnp.dot(self.vertex, n_ecef) / _C_LIGHT
+        return jnp.dot(self.vertex, n_ecef) / _C_LIGHT
 
     # ── Waveform projection ────────────────────────────────────────────────────
 
