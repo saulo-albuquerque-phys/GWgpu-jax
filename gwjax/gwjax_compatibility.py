@@ -54,18 +54,19 @@ import jax.numpy as jnp
 def gmst_from_gps(gps_time: float) -> float:
     """Greenwich Mean Sidereal Time [rad] at a GPS epoch, mod 2π.
 
-    Delegates to ``bilby_cython.time.greenwich_mean_sidereal_time`` — the
+    Prefers ``bilby_cython.time.greenwich_mean_sidereal_time`` — the
     IAU 2006 implementation used internally by bilby and LALSuite, with
-    proper leap-second handling. Matches bilby to numerical precision
-    (verified to < 1 µrad on the 50-point real-data sweep against bilby
-    on GW150914 strain).
+    proper leap-second handling. Falls back to a pure-Python Aoki/IAU
+    1982 polynomial with a correct TAI-UTC leap-second table when
+    ``bilby_cython`` is not installed (e.g. minimal Colab environments).
+    The fallback agrees with bilby_cython to ~5·10⁻⁵ rad — the residual
+    is the UT1-UTC offset (≤ 0.9 s) which the fallback ignores.
 
-    The previous in-tree Aoki/Cornish-Littenberg polynomial used a wrong
-    TAI-UTC count for post-2012 epochs (34 instead of 36 leap seconds at
-    GW150914), introducing a ~200 µrad systematic GMST error that biased
-    real-data PE by ~0.1 lnL across the sky. The bug was invisible to
-    inject↔recover round-trips because both legs used the same wrong
-    GMST.
+    The previous in-tree polynomial used a wrong TAI-UTC count for
+    post-2012 epochs (34 instead of 36 leap seconds at GW150914),
+    introducing a ~200 µrad GMST error. The bug was invisible to
+    inject↔recover round-trips (both legs used the same wrong value) but
+    biased real-data PE by ~0.1 lnL across the sky.
 
     Parameters
     ----------
@@ -76,8 +77,50 @@ def gmst_from_gps(gps_time: float) -> float:
     -------
     gmst : float [rad]  in [0, 2π)
     """
-    from bilby_cython.time import greenwich_mean_sidereal_time
-    return float(greenwich_mean_sidereal_time(float(gps_time)) % (2.0 * math.pi))
+    try:
+        from bilby_cython.time import greenwich_mean_sidereal_time
+        return float(greenwich_mean_sidereal_time(float(gps_time))
+                     % (2.0 * math.pi))
+    except ImportError:
+        return _gmst_aoki_fallback(float(gps_time))
+
+
+def _tai_minus_utc(gps_time: float) -> int:
+    """Cumulative TAI−UTC leap-second offset at a GPS epoch.
+
+    Boundaries are the post-leap GPS times of each insertion since the
+    last LIGO-relevant change. Values match IERS Bulletin C; current
+    value (37) has been static since 2017-01-01.
+    """
+    if gps_time >= 1167264018.0: return 37   # 2017-01-01 00:00:00 UTC
+    if gps_time >= 1119744017.0: return 36   # 2015-07-01
+    if gps_time >= 1025136016.0: return 35   # 2012-07-01
+    if gps_time >=  914803215.0: return 34   # 2009-01-01
+    if gps_time >=  820108814.0: return 33   # 2006-01-01
+    return 32                                # earlier — pre-S5
+
+
+def _gmst_aoki_fallback(gps_time: float) -> float:
+    """Aoki/IAU 1982 GMST polynomial with the correct leap-second table.
+
+    Used only when ``bilby_cython`` is unavailable. UT1 is approximated
+    as UTC (max error 0.9 s in UT1, ~5·10⁻⁵ rad in GMST — negligible
+    relative to the inner-product precision needed for PE).
+    """
+    tai_utc = _tai_minus_utc(gps_time)
+    # GPS → UTC seconds since the GPS epoch (1980-01-06 00:00:00 UTC,
+    # JD 2444244.5). GPS-UTC = TAI-UTC − 19 because GPS time = TAI − 19s.
+    utc_since_epoch = gps_time - (tai_utc - 19)
+    jd_ut1 = 2444244.5 + utc_since_epoch / 86400.0
+    Tu = (jd_ut1 - 2451545.0) / 36525.0
+    # Aoki sidereal-time polynomial (seconds):
+    gmst_sec = (
+        67310.54841
+        + (876600.0 * 3600.0 + 8640184.812866) * Tu
+        + 0.093104 * Tu * Tu
+        - 6.2e-6   * Tu * Tu * Tu
+    )
+    return float((gmst_sec % 86400.0) * math.pi / 43200.0)
 
 
 # ── Lazy gwpy import ──────────────────────────────────────────────────────────
