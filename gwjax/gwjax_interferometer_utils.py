@@ -79,41 +79,73 @@ _C_LIGHT = 299_792_458.0          # speed of light [m/s]
 _WGS84_A = 6_378_137.0            # semi-major axis [m]
 _WGS84_E2 = 6.694_379_990_14e-3   # first eccentricity squared
 
-# ── Known detector parameters (geodetic) ─────────────────────────────────────
-#   lat, lon : degrees (positive N / positive E)
-#   elev     : metres above WGS84 ellipsoid
-#   xarm_az  : azimuth of x-arm from North, clockwise (degrees)
-#   yarm_az  : azimuth of y-arm from North, clockwise (degrees)
-#   arm_len  : arm length [m]
-#   psd      : default PSD model name
+# ── Known detector parameters ────────────────────────────────────────────────
+#
+# Geometry source of truth: LAL/bilby reference values (`bilby_cython`'s
+# ``InterferometerGeometry``). The arm ECEF unit vectors are stored *directly*
+# rather than reconstructed from (lat, lon, azimuth, tilt) so the geometry
+# matches bilby bit-for-bit (no projection rounding, no missing arm-tilt
+# correction). Reconstruction from (lat, lon, az) is kept for *custom* user
+# detectors — see :func:`_azimuth_to_ecef`.
+#
+# Keys
+#   lat, lon     : degrees (positive N / positive E) — informational only
+#   elev         : metres above WGS84 ellipsoid     — informational only
+#   vertex_ecef  : ECEF position of the vertex [m]
+#   xarm_ecef    : ECEF unit vector along the x-arm (LAL-precision)
+#   yarm_ecef    : ECEF unit vector along the y-arm (LAL-precision)
+#   arm_len      : arm length [m]
+#   psd          : default PSD model name
+#
+# The N-CW (xarm_az, yarm_az) values are *retained* for reference and for
+# the custom-detector path (``_azimuth_to_ecef``); they are ignored when
+# ``xarm_ecef``/``yarm_ecef`` are present.
 _KNOWN_DETECTORS: dict[str, dict] = {
-    # All azimuths below are stored in *North-CW* (the convention that
-    # ``_azimuth_to_ecef`` uses). The previous file mixed East-CCW values
-    # in here while the conversion function assumed N-CW, so every detector
-    # was rotated by `90° − az` from its LAL geometry — silent for synthetic
-    # PE (cancels inject↔recover) but visibly wrong on real-data PE
-    # (the matched filter prefers the *mirror* sky arc).
-    #
-    # The values below are LAL's canonical detector azimuths in N-CW:
-    #   LHO 4K  X = 5.65488 rad = 324.001°,  Y = 4.08408 rad = 234.001°
-    #   LLO 4K  X = 4.40304 rad = 252.282°,  Y = 5.97108 rad = 342.282°
-    #   V1      X = 0.33916 rad =  19.434°,  Y = 5.05335 rad = 289.434°
-    "H1": dict(lat=46.455172,  lon=-119.407725, elev=142.554,
-               xarm_az=324.0006, yarm_az=234.0006, arm_len=3995.1,  psd="aLIGO"),
-    "L1": dict(lat=30.562894,  lon=-90.774234,  elev=-6.574,
-               xarm_az=252.2835, yarm_az=342.2835, arm_len=3994.5,  psd="aLIGO"),
-    "V1": dict(lat=43.631453,  lon=10.504423,   elev=51.884,
-               xarm_az=19.4326,  yarm_az=289.4326, arm_len=3000.0,  psd="AdV"),
-    # K1, ET, CE below were unverified against LAL — left as-is; please
-    # re-verify against bilby before relying on real-data PE for them.
-    "K1": dict(lat=36.412078,  lon=137.306119,  elev=414.181,
-               xarm_az=28.3,     yarm_az=118.3,    arm_len=3000.0,  psd="KAGRA"),
+    "H1": dict(
+        lat=46.4547471372, lon=-119.4076509511, elev=142.554,
+        xarm_az=324.0006, yarm_az=234.0006, arm_len=3995.1, psd="aLIGO",
+        vertex_ecef=(-2161414.926360, -3834695.178888, 4600350.226639),
+        xarm_ecef  =(-0.2238926615,    0.7998306275,    0.5569048783),
+        yarm_ecef  =(-0.9139781857,    0.0260940399,   -0.4049234212),
+    ),
+    "L1": dict(
+        lat=30.5628943333, lon=-90.7742403889,  elev=-6.574,
+        xarm_az=252.2835, yarm_az=342.2835, arm_len=3994.5, psd="aLIGO",
+        vertex_ecef=(   -74276.044724, -5496283.719708, 3224257.017436),
+        xarm_ecef  =(-0.9545741215,   -0.1415807734,   -0.2621891132),
+        yarm_ecef  =( 0.2977415689,   -0.4879103365,   -0.8205446129),
+    ),
+    "V1": dict(
+        lat=43.6314144722, lon=10.5044966111,   elev=51.884,
+        xarm_az=19.4326,  yarm_az=289.4326, arm_len=3000.0, psd="AdV",
+        vertex_ecef=(4546374.099003,   842989.697626,  4378576.962409),
+        xarm_ecef  =(-0.7004582148,    0.2084894862,    0.6825616628),
+        yarm_ecef  =(-0.0537925537,   -0.9690818055,    0.2408045171),
+    ),
+    "K1": dict(
+        lat=36.4118603389, lon=137.3059560306, elev=414.181,
+        xarm_az=29.6038,  yarm_az=119.6036, arm_len=3000.0, psd="KAGRA",
+        vertex_ecef=(-3777336.023929, 3484898.410986, 3765313.696691),
+        xarm_ecef  =(-0.3759040795,  -0.8361583410,   0.3994187675),
+        yarm_ecef  =( 0.7164379022,   0.0111408152,   0.6975619073),
+    ),
+    "GEO600": dict(
+        lat=52.2451466667, lon=9.8071927778,   elev=114.425,
+        xarm_az=21.6117,  yarm_az=115.9431, arm_len=600.0,  psd="aLIGO",
+        vertex_ecef=(3856309.949259,  666598.956317,  5019641.417249),
+        xarm_ecef  =(-0.4453067690,   0.8665135413,   0.2255131131),
+        yarm_ecef  =(-0.6260575678,  -0.5521860952,   0.5505837249),
+    ),
     # Einstein Telescope: 10 km arms, 60° opening angle, Sardinia placeholder
+    # (not in bilby's registry — kept as geometric placeholder via lat/lon/az)
     "ET": dict(lat=40.522,     lon=9.425,       elev=0.0,
-               xarm_az=70.5674, yarm_az=130.5674, arm_len=10000.0,  psd="ET_D"),
+               xarm_az=70.5674, yarm_az=130.5674, arm_len=10000.0, psd="ET_D"),
     # Cosmic Explorer: 20 km arms, LHO-placeholder geometry (LAL azimuths)
-    "CE": dict(lat=46.455172,  lon=-119.407725, elev=142.554,
-               xarm_az=324.0006, yarm_az=234.0006, arm_len=20000.0, psd="CE"),
+    "CE": dict(lat=46.4547471372, lon=-119.4076509511, elev=142.554,
+               xarm_az=324.0006, yarm_az=234.0006, arm_len=20000.0, psd="CE",
+               vertex_ecef=(-2161414.926360, -3834695.178888, 4600350.226639),
+               xarm_ecef  =(-0.2238926615,    0.7998306275,    0.5569048783),
+               yarm_ecef  =(-0.9139781857,    0.0260940399,   -0.4049234212)),
 }
 
 
@@ -238,9 +270,21 @@ class Interferometer:
             _arm_len = arm_len
             _default_psd = "aLIGO"
 
-        self.vertex     = jnp.array(_geodetic_to_ecef(_lat, _lon, _elev))
-        self.xarm       = jnp.array(_azimuth_to_ecef(_lat, _lon, _xaz))
-        self.yarm       = jnp.array(_azimuth_to_ecef(_lat, _lon, _yaz))
+        # Geometry source preference:
+        #   1. If known-detector entry carries explicit ECEF vectors
+        #      (vertex_ecef + xarm_ecef + yarm_ecef), use them verbatim —
+        #      this matches LAL/bilby to all published digits and accounts
+        #      for arm tilts that the lat/lon/azimuth-only path ignores.
+        #   2. Otherwise reconstruct from geodetic lat/lon + N-CW azimuth.
+        cfg = _KNOWN_DETECTORS.get(name, {})
+        if {"vertex_ecef", "xarm_ecef", "yarm_ecef"} <= cfg.keys():
+            self.vertex = jnp.array(cfg["vertex_ecef"], dtype=jnp.float64)
+            self.xarm   = jnp.array(cfg["xarm_ecef"],   dtype=jnp.float64)
+            self.yarm   = jnp.array(cfg["yarm_ecef"],   dtype=jnp.float64)
+        else:
+            self.vertex = jnp.array(_geodetic_to_ecef(_lat, _lon, _elev))
+            self.xarm   = jnp.array(_azimuth_to_ecef(_lat, _lon, _xaz))
+            self.yarm   = jnp.array(_azimuth_to_ecef(_lat, _lon, _yaz))
         self.arm_length = float(_arm_len)
         self._lat       = _lat
         self._lon       = _lon
