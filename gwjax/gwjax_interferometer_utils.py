@@ -87,22 +87,25 @@ _WGS84_E2 = 6.694_379_990_14e-3   # first eccentricity squared
 #   arm_len  : arm length [m]
 #   psd      : default PSD model name
 _KNOWN_DETECTORS: dict[str, dict] = {
-    # Azimuths from North, clockwise (the convention `_azimuth_to_ecef` uses).
-    # Matches the LAL canonical orientation:
-    #   LAL_LHO_4K_ARM_X_AZIMUTH_RAD = 5.6549 rad = 324.0006°  (bisector at 279°)
-    #   LAL_LHO_4K_ARM_Y_AZIMUTH_RAD = 4.0841 rad = 234.0006°
-    # SHARPy's H1 ``gamma = 170.9969`` is the same bisector measured from
-    # East counter-clockwise (171° E-CCW = 279° N-CW), so they agree once the
-    # arm-direction convention is consistent. The previous entry
-    # (125.9994, 215.9994) placed H1's bisector at 171° N-CW — physically
-    # rotated 108° from LAL — which gave a wrong antenna pattern and made
-    # the matched filter on real H1+L1 data prefer the mirror sky arc.
+    # All azimuths below are stored in *North-CW* (the convention that
+    # ``_azimuth_to_ecef`` uses). The previous file mixed East-CCW values
+    # in here while the conversion function assumed N-CW, so every detector
+    # was rotated by `90° − az` from its LAL geometry — silent for synthetic
+    # PE (cancels inject↔recover) but visibly wrong on real-data PE
+    # (the matched filter prefers the *mirror* sky arc).
+    #
+    # The values below are LAL's canonical detector azimuths in N-CW:
+    #   LHO 4K  X = 5.65488 rad = 324.001°,  Y = 4.08408 rad = 234.001°
+    #   LLO 4K  X = 4.40304 rad = 252.282°,  Y = 5.97108 rad = 342.282°
+    #   V1      X = 0.33916 rad =  19.434°,  Y = 5.05335 rad = 289.434°
     "H1": dict(lat=46.455172,  lon=-119.407725, elev=142.554,
                xarm_az=324.0006, yarm_az=234.0006, arm_len=3995.1,  psd="aLIGO"),
     "L1": dict(lat=30.562894,  lon=-90.774234,  elev=-6.574,
-               xarm_az=197.7165, yarm_az=287.7165, arm_len=3994.5,  psd="aLIGO"),
+               xarm_az=252.2835, yarm_az=342.2835, arm_len=3994.5,  psd="aLIGO"),
     "V1": dict(lat=43.631453,  lon=10.504423,   elev=51.884,
-               xarm_az=70.5674,  yarm_az=160.5674, arm_len=3000.0,  psd="AdV"),
+               xarm_az=19.4326,  yarm_az=289.4326, arm_len=3000.0,  psd="AdV"),
+    # K1, ET, CE below were unverified against LAL — left as-is; please
+    # re-verify against bilby before relying on real-data PE for them.
     "K1": dict(lat=36.412078,  lon=137.306119,  elev=414.181,
                xarm_az=28.3,     yarm_az=118.3,    arm_len=3000.0,  psd="KAGRA"),
     # Einstein Telescope: 10 km arms, 60° opening angle, Sardinia placeholder
