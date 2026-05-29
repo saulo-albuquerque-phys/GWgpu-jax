@@ -457,27 +457,25 @@ class Interferometer:
         dec:  float | jnp.ndarray,
         gmst: float | jnp.ndarray = 0.0,
     ) -> jnp.ndarray:
-        """Compute the geocenter↔detector projection delay [s].
+        """Compute the arrival-time delay relative to the geocenter [s].
 
-        Returns ``Δt = (n̂ · vertex) / c`` where n̂ points from the geocenter
-        toward (ra, dec). This is the convention the rest of the pipeline
-        (``waveform_projection_fd``, ``Network.project_waveform``, the
-        sampler likelihood, the relative-binning module) was built around,
-        and it is the convention under which synthetic injections recover
-        their truth parameters.
+        Returns ``Δt = t_det − t_geo = −(n̂ · vertex) / c`` where n̂ points
+        from the geocenter toward the source (ra, dec). A **positive** value
+        means the signal arrives at the detector *after* the geocenter (the
+        detector is "downstream" in the wave-propagation direction). A
+        **negative** value means the detector is closer to the source and
+        receives the signal first.
 
-        Note on sign
-        ------------
-        A first-principles derivation gives ``t_det − t_geo = −(n̂ · vertex) / c``
-        (detector closer to source → receives signal earlier → negative
-        delay). One might naively expect this to be the "right" answer to
-        return here. However, the projection layer ``waveform_projection_fd``
-        and the synthetic-injection path ``Network.project_waveform`` were
-        built around the formula ``+(n̂ · vertex) / c`` — they form an
-        internally-consistent convention, and a synthetic injection-and-
-        recovery test passes with that convention but visibly fails with the
-        flipped sign. Until/unless the projection layer itself is rewritten,
-        ``time_delay_from_geocenter`` must keep its original sign.
+        Combined with the FD shift ``exp(−2πi · f · Δt)`` in
+        :func:`gwjax.gwjax_likelihood_utils.waveform_projection_fd`, this
+        is the SHARPy / bilby / LAL convention; real-data PE recovers the
+        published sky position with this sign.
+
+        Note: this convention requires the waveform_fn passed to the sampler
+        to NOT also apply ``tc`` internally. See
+        :func:`gwjax.gwjax_samplers.build_ripplegw_waveform_fn` — it forces
+        ``tc = 0`` in the ripplegw theta vector so the projection layer is
+        the only place ``tc`` is applied (single-counted).
 
         Parameters
         ----------
@@ -496,7 +494,9 @@ class Interferometer:
             cos_dec * jnp.sin(ra_ecef),
             sin_dec,
         ])
-        return jnp.dot(self.vertex, n_ecef) / _C_LIGHT
+        # Δt = t_det − t_geo = −(n̂ · vertex)/c
+        # (Detector closer to source → n̂·vertex > 0 → Δt < 0 → signal earlier.)
+        return -jnp.dot(self.vertex, n_ecef) / _C_LIGHT
 
     # ── Waveform projection ────────────────────────────────────────────────────
 

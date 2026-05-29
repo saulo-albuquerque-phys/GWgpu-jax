@@ -135,10 +135,18 @@ def build_ripplegw_waveform_fn(
         m1, m2 = params["m1"], params["m2"]
         Mc  = (m1 * m2) ** (3.0 / 5.0) / (m1 + m2) ** (1.0 / 5.0)
         eta = m1 * m2 / (m1 + m2) ** 2
+        # tc = 0 in the ripplegw theta. ripplegw applies tc as an FD shift
+        # exp(-2πi·f·tc) internally; the projection layer
+        # (gwjax_likelihood_utils.waveform_projection_fd) also applies tc via
+        # (tc + dt_ifo). Passing params["tc"] here would double-count it. The
+        # SHARPy/bilby/LAL convention is to keep tc *only* in the projection
+        # layer — that's what the sampler likelihood expects.
         theta = jnp.stack([
             Mc, eta,
             params["chi_1"], params["chi_2"],
-            params["distance"], params["tc"], params["phi_c"],
+            params["distance"],
+            jnp.zeros_like(m1),                       # tc = 0 (see comment above)
+            params["phi_c"],
             params["inclination"],
         ])
         return gen(freqs, theta, f_ref)
