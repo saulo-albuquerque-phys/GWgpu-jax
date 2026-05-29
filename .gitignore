@@ -45,3 +45,6 @@ Thumbs.db
 corner.png
 corner_*.png
 /tmp/
+resultsGW150914_ripple/IGWN-GWTC2p1-v2-GW150914_095045_PEDataRelease_mixed_cosmo (2).h5
+resultsGW150914_ripple/GW_likelihood.py
+resultsGW150914_ripple/utils.py
