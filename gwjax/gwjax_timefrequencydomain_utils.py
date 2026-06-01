@@ -28,12 +28,27 @@ Four main arrays are produced from three scalars (``duration``, ``sampling_rate`
 
   ``time_domain_array_mlgw``
       Time grid in the convention required by ``mlgw_bbh_jax``:
-      t = 0 is placed at the merger, which is assumed to lie at the very end
-      of the segment (``t = initial_time + duration``).  Therefore this array
-      equals ``time_domain_array − (initial_time + duration)``, running from
-      ``−duration`` to ``−dt``.  All values are negative, consistent with the
-      mlgw_bbh_jax model expectation that the waveform is evaluated before the
-      peak.
+      t = 0 is placed at the merger (where mlgw_bbh puts the waveform peak).
+      The grid runs from ``mlgw_final_time − duration`` to
+      ``mlgw_final_time − dt`` in steps of ``dt`` — i.e. it is
+      ``time_domain_array`` shifted so the merger sits ``mlgw_final_time``
+      seconds before the end of the segment.
+
+      **Why it must cross zero.** mlgw_bbh generates the waveform on its own
+      native reduced-time grid (peak at 0, ringdown out to ~``times[-1]·M``)
+      and interpolates onto this array with the amplitude held at *zero*
+      outside the native range (``jnp.interp(..., left=0., right=0.)``).
+      If the grid stops at ``−dt`` (the old ``mlgw_final_time = 0`` choice)
+      the merger peak and the *entire* post-merger ringdown fall on the
+      ``right=0`` side and are silently dropped, leaving a ringdown-less,
+      discontinuous template whose rFFT is badly distorted. This is invisible
+      to inject↔recover (the distorted template matches itself) but wrecks
+      real-data PE — the coalescence time and masses rail at the prior edges.
+      A small positive ``mlgw_final_time`` (default 0.01 s, after the
+      upstream ``GW_FD_generator``) makes the grid straddle zero so the peak
+      and ringdown are captured. Pair it with an asymmetric Tukey taper on
+      the time-domain (h₊, h×) before the rFFT to suppress the inspiral
+      turn-on / ringdown-edge leakage.
 
 Usage
 -----
@@ -43,7 +58,7 @@ Usage
 >>> grid.time_domain_array        # shape (16384,)
 >>> grid.frequency_domain_array   # shape (8193,)  — full FFT grid
 >>> grid.frequency_mask           # shape (8193,)  — True for 20–1024 Hz
->>> grid.time_domain_array_mlgw   # shape (16384,), values in [−8, −dt)
+>>> grid.time_domain_array_mlgw   # shape (16384,), in [0.01−8, 0.01−dt)
 """
 
 from __future__ import annotations
@@ -70,6 +85,14 @@ class TimeFrequencyGrid:
         Upper frequency boundary of the analysis band [Hz].  Defaults to
         ``None``, which means the Nyquist frequency ``sampling_rate / 2``.
         Used to build ``frequency_mask``.
+    mlgw_final_time : float, optional
+        Seconds of post-merger time to include at the end of
+        ``time_domain_array_mlgw`` [s].  Must satisfy ``0 <= mlgw_final_time
+        < duration``.  Defaults to 0.01 s (matching the upstream
+        ``GW_FD_generator``), enough to capture the peak and ringdown of a
+        stellar-mass BBH; raise it for very high total masses (longer
+        ringdown).  Has no effect on any array other than
+        ``time_domain_array_mlgw``.
 
     Attributes
     ----------
@@ -91,8 +114,12 @@ class TimeFrequencyGrid:
     frequency_mask : jax.Array of bool, shape (N//2 + 1,)
         True for bins satisfying ``f_min ≤ f ≤ f_max``.
     time_domain_array_mlgw : jax.Array, shape (N,)
-        Time samples relative to merger (t=0 = end of segment) [s].
-        Used as the ``t_grid`` argument for ``MLGWBBHGenerator``.
+        Time samples relative to merger (t=0 at the peak) [s], running
+        ``[mlgw_final_time − duration, mlgw_final_time − dt]`` so the peak
+        and ringdown are sampled. Used as the ``t_grid`` argument for
+        ``MLGWBBHGenerator``.
+    mlgw_final_time : float
+        Post-merger tail length baked into ``time_domain_array_mlgw`` [s].
     """
 
     def __init__(
@@ -102,6 +129,7 @@ class TimeFrequencyGrid:
         initial_time:  float = 0.0,
         f_min:         float = 0.0,
         f_max:         float | None = None,
+        mlgw_final_time: float = 0.01,
     ) -> None:
         if duration <= 0:
             raise ValueError(f"duration must be positive, got {duration}")
@@ -109,6 +137,11 @@ class TimeFrequencyGrid:
             raise ValueError(f"sampling_rate must be positive, got {sampling_rate}")
         if f_min < 0:
             raise ValueError(f"f_min must be non-negative, got {f_min}")
+        if not (0.0 <= mlgw_final_time < duration):
+            raise ValueError(
+                f"mlgw_final_time must lie in [0, duration={duration}), "
+                f"got {mlgw_final_time}"
+            )
 
         n_samples = int(round(duration * sampling_rate))
         if abs(n_samples - duration * sampling_rate) > 1e-6:
@@ -125,6 +158,7 @@ class TimeFrequencyGrid:
         self.df            = 1.0 / self.duration
         self.f_min         = float(f_min)
         self.f_max         = float(f_max) if f_max is not None else self.sampling_rate / 2.0
+        self.mlgw_final_time = float(mlgw_final_time)
 
         # ── time_domain_array: [t0, t0+dt, …, t0+(N-1)·dt] ──────────────────
         self.time_domain_array: jnp.ndarray = (
@@ -142,13 +176,15 @@ class TimeFrequencyGrid:
             & (self.frequency_domain_array <= self.f_max)
         )
 
-        # ── time_domain_array_mlgw: merger placed at t=0 (end of segment) ────
-        # t_mlgw[i] = (initial_time + i·dt) − (initial_time + duration)
-        #           = i·dt − duration
-        # Computed this way to avoid float32 cancellation when initial_time is
-        # a large GPS timestamp.
+        # ── time_domain_array_mlgw: merger at t=0, ``mlgw_final_time`` of
+        #    post-merger time kept at the tail so the peak + ringdown are
+        #    actually sampled (see the class docstring for why this matters).
+        # t_mlgw[i] = i·dt − duration + mlgw_final_time, i.e. the grid runs
+        #             [mlgw_final_time − duration, mlgw_final_time − dt].
+        # Computed relative to the merger (not initial_time) to avoid float
+        # cancellation when initial_time is a large GPS timestamp.
         self.time_domain_array_mlgw: jnp.ndarray = (
-            jnp.arange(n_samples) * self.dt - self.duration
+            jnp.arange(n_samples) * self.dt - self.duration + self.mlgw_final_time
         )
 
     def __repr__(self) -> str:

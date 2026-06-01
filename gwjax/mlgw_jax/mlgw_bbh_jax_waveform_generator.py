@@ -59,6 +59,81 @@ if str(_REPO_DIR) not in sys.path:
 from mlgw.GW_generator import GW_generator  # noqa: E402  (path injection above)
 
 
+# ── Time-domain → frequency-domain helpers ───────────────────────────────────
+#
+# mlgw_bbh is a time-domain surrogate; turning it into the complex FD
+# (h₊, h×) that the GWjax likelihood expects needs two things the bare
+# ``rfft`` does not provide, both lifted from the upstream
+# ``mlgw.GW_FD_generator``:
+#
+#   1. an evaluation grid that *crosses zero* so the peak + ringdown are
+#      sampled (see ``TimeFrequencyGrid.time_domain_array_mlgw``); and
+#   2. an **asymmetric Tukey taper** applied in the time domain before the
+#      rFFT, to kill the spectral leakage from the abrupt inspiral turn-on
+#      (long ``alpha_left``) and the truncated ringdown edge (tiny
+#      ``alpha_right``).
+#
+# Skipping the taper is what leaves the FD template distorted enough to
+# rail the coalescence time and masses on real-data PE.
+
+def tukey_asymmetric(n: int, alpha_left: float = 0.1, alpha_right: float = 0.001):
+    """Asymmetric Tukey (tapered-cosine) window, JAX-traceable.
+
+    ``alpha_left`` / ``alpha_right`` are the fractions of the window cosine-
+    tapered at the start / end. Matches ``GW_FD_generator.tukey_asymmetric``.
+
+    Parameters
+    ----------
+    n : int
+        Window length (number of time samples).
+    alpha_left, alpha_right : float
+        Taper fractions in ``[0, 1]``. Defaults 0.1 / 0.001 follow upstream.
+
+    Returns
+    -------
+    w : jnp.ndarray, shape (n,)
+    """
+    x = jnp.linspace(0.0, 1.0, n)
+    w = jnp.ones_like(x)
+    left  = 0.5 * (1.0 + jnp.cos(2.0 * jnp.pi * (x / alpha_left - 0.5)))
+    right = 0.5 * (1.0 + jnp.cos(2.0 * jnp.pi * ((x - 1.0) / alpha_right + 0.5)))
+    w = jnp.where(x < alpha_left  / 2.0, left,  w)
+    w = jnp.where(x > 1.0 - alpha_right / 2.0, right, w)
+    return w
+
+
+def hphc_td_to_fd(
+    hp_td, hc_td, dt,
+    alpha_left:  float = 0.1,
+    alpha_right: float = 0.001,
+):
+    """Window (h₊, h×) in the time domain and rFFT to the GWjax FD convention.
+
+    Applies an :func:`tukey_asymmetric` taper then ``ĥ(f) = rfft(h)·dt``
+    (the convention used everywhere else in GWjax, e.g.
+    ``Interferometer.load_data``). Equivalent to
+    ``GW_FD_generator.nfft_jax`` (which divides by the sampling rate).
+
+    Parameters
+    ----------
+    hp_td, hc_td : jnp.ndarray, shape (N,)
+        Real time-domain polarisations from ``MLGWBBHGenerator``, evaluated
+        on a grid that crosses zero (``grid.time_domain_array_mlgw``).
+    dt : float
+        Time step ``1 / sampling_rate`` [s].
+    alpha_left, alpha_right : float
+        Tukey taper fractions; forwarded to :func:`tukey_asymmetric`.
+
+    Returns
+    -------
+    hp_fd, hc_fd : complex jnp.ndarray, shape (N//2 + 1,)
+    """
+    w = tukey_asymmetric(hp_td.shape[-1], alpha_left, alpha_right)
+    hp_fd = jnp.fft.rfft(hp_td * w) * dt
+    hc_fd = jnp.fft.rfft(hc_td * w) * dt
+    return hp_fd, hc_fd
+
+
 class MLGWBBHGenerator:
     """Time-domain BBH waveform generator backed by MLGW-JAX (model_4, SEOBNRv5HM).
 
