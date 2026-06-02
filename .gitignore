@@ -51,3 +51,5 @@ resultsGW150914_ripple/utils.py
 mlgw_bbh/posterior_samples (2).txt
 .gitignore
 mlgw_bbh/FINALBlackJAX_NS_mlgw_bbh.ipynb
+mlgw_bbh/posterior_samples (5).txt
+mlgw_bbh/posterior_samples_mlgw_500.txt
