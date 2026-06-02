@@ -322,6 +322,14 @@ class GWjaxTwoPhaseNestedSampler(GWjaxNestedSampler):
             )
 
         # ── Finalise + posterior sample ──────────────────────────────────────
+        # ``finalise`` concatenates *every* NSInfo field across all dead
+        # records, including the diagnostic ``inner_kernel_info`` whose shape is
+        # (num_delete, num_inner_steps). When the two phases use different
+        # ``num_inner_steps``, those per-record shapes differ along the
+        # inner-steps axis and the concatenation raises. The field is unused by
+        # the evidence/posterior, so drop it (set to None → an empty pytree node
+        # that ``jax.tree.map`` skips) before finalising.
+        dead = [info._replace(inner_kernel_info=None) for info in dead]
         dead_info = bns.utils.finalise(state, dead)
 
         k_w, k_s = jax.random.split(k_post)
