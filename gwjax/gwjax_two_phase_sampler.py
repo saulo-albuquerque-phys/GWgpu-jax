@@ -98,6 +98,8 @@ class GWjaxTwoPhaseNestedSampler(GWjaxNestedSampler):
         *,
         num_live:                      int            = 500,
         num_inner_steps:               Optional[int]  = None,
+        phase1_num_inner_steps:        Optional[int]  = None,
+        phase2_num_inner_steps:        Optional[int]  = None,
         # ── phase 1: aggressive batch deletion ──────────────────────────────
         phase1_num_delete:             int            = 25,
         phase1_delta_logz_threshold:   float          = -1.0,
@@ -120,7 +122,17 @@ class GWjaxTwoPhaseNestedSampler(GWjaxNestedSampler):
             Number of live particles (constant across both phases).
         num_inner_steps : int, optional
             Slice-sampling steps per NS iteration. Defaults to ``5·d``
-            where ``d = len(self.param_bounds)``.
+            where ``d = len(self.param_bounds)``. Used for both phases
+            unless overridden per phase below.
+        phase1_num_inner_steps, phase2_num_inner_steps : int, optional
+            Per-phase slice-step budgets; each defaults to
+            ``num_inner_steps``. Typical use is a cheaper bulk phase and a
+            more thorough tail, e.g. ``phase1_num_inner_steps=40,
+            phase2_num_inner_steps=300`` to better decorrelate near the
+            peak (helps narrow degeneracies). Note phase 2 runs many
+            single-delete iterations, so raising its budget dominates the
+            wall-clock; lowering phase 1 recovers little since it is
+            vmap-amortised over ``phase1_num_delete``.
         phase1_num_delete : int
             Particles replaced per phase-1 step. Use ``num_live // 20``
             to ``num_live // 50`` for a strong speed-up with controlled
@@ -181,6 +193,15 @@ class GWjaxTwoPhaseNestedSampler(GWjaxNestedSampler):
         d = len(self.param_bounds)
         if num_inner_steps is None:
             num_inner_steps = max(5 * d, 10)
+        # Per-phase override of the slice-step budget. Phase 1 (batch delete)
+        # is somewhat self-averaging and can use fewer steps; phase 2 (the
+        # accurate tail, where the posterior — and narrow degeneracies like
+        # chi_eff-q — is resolved) benefits from more thorough decorrelation.
+        # Both default to ``num_inner_steps`` (unchanged behaviour).
+        if phase1_num_inner_steps is None:
+            phase1_num_inner_steps = num_inner_steps
+        if phase2_num_inner_steps is None:
+            phase2_num_inner_steps = num_inner_steps
 
         k_init, k_p1, k_p2, k_post = jax.random.split(rng_key, 4)
 
@@ -193,7 +214,7 @@ class GWjaxTwoPhaseNestedSampler(GWjaxNestedSampler):
         algo1 = bns.nss.as_top_level_api(
             logprior_fn      = logprior_fn,
             loglikelihood_fn = self._loglikelihood_fn,
-            num_inner_steps  = num_inner_steps,
+            num_inner_steps  = phase1_num_inner_steps,
             num_delete       = phase1_num_delete,
         )
         state = algo1.init(particles)
@@ -251,7 +272,7 @@ class GWjaxTwoPhaseNestedSampler(GWjaxNestedSampler):
         algo2 = bns.nss.as_top_level_api(
             logprior_fn      = logprior_fn,
             loglikelihood_fn = self._loglikelihood_fn,
-            num_inner_steps  = num_inner_steps,
+            num_inner_steps  = phase2_num_inner_steps,
             num_delete       = phase2_num_delete,
         )
         step2 = jax.jit(algo2.step)
