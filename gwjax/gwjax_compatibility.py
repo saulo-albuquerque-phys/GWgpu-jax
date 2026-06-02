@@ -137,6 +137,41 @@ def _require_gwpy():
     return TimeSeries
 
 
+# GWOSC publishes open strain at these native sample rates only. Requesting any
+# other rate from ``TimeSeries.fetch_open_data`` returns no source and raises a
+# ``GetExceptionGroup`` ("failed to get data from any source").
+_GWOSC_NATIVE_RATES = (4096, 16384)
+
+
+def _gwosc_native_rate(target_rate):
+    """Smallest GWOSC native rate >= ``target_rate`` (so it decimates cleanly).
+
+    Falls back to the highest native rate if the target exceeds all of them.
+    """
+    for native in _GWOSC_NATIVE_RATES:
+        if native >= target_rate - 1e-6:
+            return native
+    return _GWOSC_NATIVE_RATES[-1]
+
+
+def _fetch_open_data_native(TimeSeries, det, start, end, target_rate,
+                            cache=True, verbose=False):
+    """Fetch GWOSC strain at a native rate, then resample to ``target_rate``.
+
+    ``TimeSeries.fetch_open_data(sample_rate=...)`` only succeeds for rates
+    GWOSC actually serves (see :data:`_GWOSC_NATIVE_RATES`). To support an
+    arbitrary analysis rate (e.g. 1024 Hz), we download at the nearest native
+    rate and downsample.
+    """
+    native = _gwosc_native_rate(target_rate)
+    ts = TimeSeries.fetch_open_data(
+        det, start, end, sample_rate=int(native), cache=cache, verbose=verbose,
+    )
+    if abs(float(ts.sample_rate.value) - target_rate) > 1e-6:
+        ts = ts.resample(target_rate)
+    return ts
+
+
 # ── Known-event registry ──────────────────────────────────────────────────────
 
 @dataclass(frozen=True)
@@ -241,8 +276,9 @@ def fetch_event_strain(
     duration : float
         Segment duration [s].
     sampling_rate : float
-        Target sample rate [Hz]. ``gwpy`` returns whatever rate is
-        available on GWOSC closest to this value.
+        Target analysis sample rate [Hz]. GWOSC only serves native rates
+        (4096 / 16384 Hz), so the strain is fetched at the nearest native
+        rate and resampled down to ``sampling_rate``.
     pre_merger : float, optional
         Seconds of pre-merger data to include in the segment. Defaults
         to ``0.875 * duration`` (merger sits 7/8 through). Must satisfy
@@ -287,9 +323,8 @@ def fetch_event_strain(
 
     out = {}
     for det in targets:
-        ts = TimeSeries.fetch_open_data(
-            det, seg_start, seg_end,
-            sample_rate=int(sampling_rate),
+        ts = _fetch_open_data_native(
+            TimeSeries, det, seg_start, seg_end, sampling_rate,
             cache=cache, verbose=verbose,
         )
         out[det] = ts
@@ -414,9 +449,20 @@ def timeseries_to_ifo(
     if abs(float(timeseries.sample_rate.value) - fs) > 1e-6:
         timeseries = timeseries.resample(fs)
 
-    # Bandpass (helps avoid aliasing on the segment edges after cropping)
+    # Bandpass (helps avoid aliasing on the segment edges after cropping).
+    # When the upper corner sits too close to the Nyquist frequency (fs/2) the
+    # IIR design is unstable (scipy: "wp, ws must be less than 1"), which
+    # happens for the standard 500 Hz band at low rates like fs = 1024 Hz. In
+    # that case fall back to a low-frequency highpass only: the resample step
+    # above already applied an anti-alias filter that bounds the top of the
+    # band, and the analysis band is enforced in frequency by the grid.
     if bandpass is not None:
-        timeseries = timeseries.bandpass(bandpass[0], bandpass[1])
+        low, high = bandpass
+        nyquist = 0.5 * fs
+        if high is not None and high < 0.95 * nyquist:
+            timeseries = timeseries.bandpass(low, high)
+        else:
+            timeseries = timeseries.highpass(low)
 
     # Determine crop window
     if event_gps is not None:
@@ -620,9 +666,8 @@ def attach_event_to_network(
         seg_start = info.gps_time - pre_merger
         seg_end   = seg_start + half_total
         for det in gwosc_targets:
-            timeseries_dict[det] = TimeSeries.fetch_open_data(
-                det, seg_start, seg_end,
-                sample_rate=int(grid.sampling_rate),
+            timeseries_dict[det] = _fetch_open_data_native(
+                TimeSeries, det, seg_start, seg_end, grid.sampling_rate,
                 cache=cache, verbose=verbose,
             )
 
