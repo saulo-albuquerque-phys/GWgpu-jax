@@ -1,6 +1,12 @@
 # Oversized GWTC data-release h5 (>100 MB, GitHub rejects it)
 tests/resultsGW150914_ripple/*.h5
 
+# mlgw_bns_jax: vendor ONLY the runtime predictor + model into gwjax (the rest
+# of the cloned subrepo is training/export-only and not imported at runtime).
+gwjax/mlgw_jax/mlgw_bns_jax/*
+!gwjax/mlgw_jax/mlgw_bns_jax/jax_import_n_predict.py
+!gwjax/mlgw_jax/mlgw_bns_jax/mlgw_bns_jax_model.h5
+
 # ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
