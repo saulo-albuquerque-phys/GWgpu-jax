@@ -1,3 +1,6 @@
+# Oversized GWTC data-release h5 (>100 MB, GitHub rejects it)
+tests/resultsGW150914_ripple/*.h5
+
 # ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]

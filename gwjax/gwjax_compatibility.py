@@ -414,9 +414,17 @@ def timeseries_to_ifo(
     if abs(float(timeseries.sample_rate.value) - fs) > 1e-6:
         timeseries = timeseries.resample(fs)
 
-    # Bandpass (helps avoid aliasing on the segment edges after cropping)
+    # Bandpass (helps avoid aliasing on the segment edges after cropping).
+    # If the upper edge reaches Nyquist, scipy's iirdesign rejects the
+    # normalised frequency (must be < 1), and a band-pass is meaningless
+    # there anyway — fall back to a high-pass at the lower edge.
     if bandpass is not None:
-        timeseries = timeseries.bandpass(bandpass[0], bandpass[1])
+        low, high = float(bandpass[0]), float(bandpass[1])
+        nyquist = 0.5 * fs
+        if high >= nyquist:
+            timeseries = timeseries.highpass(low)
+        else:
+            timeseries = timeseries.bandpass(low, high)
 
     # Determine crop window
     if event_gps is not None:
@@ -462,6 +470,8 @@ def attach_data_to_network(
     estimate_psd:           bool = False,
     psd_segment_duration:   float = 32.0,
     psd_offset:             float = 8.0,
+    psd_nperseg:            Optional[int] = None,
+    psd_full_data:          bool = False,
     detrend:                bool = True,
 ) -> list:
     """Install per-detector strains into every matching IFO of a network.
@@ -504,26 +514,45 @@ def attach_data_to_network(
         )
 
         if estimate_psd:
-            if event_gps is None:
-                raise ValueError(
-                    "estimate_psd=True requires event_gps so the off-source "
-                    "window can be placed."
-                )
-            off_end   = event_gps - psd_offset
-            off_start = off_end - psd_segment_duration
-            try:
-                off = ts.crop(off_start, off_end)
-            except Exception as e:
-                raise ValueError(
-                    f"Off-source PSD window [{off_start}, {off_end}] is "
-                    f"outside the TimeSeries for {ifo.name}. Fetch more "
-                    "data or shrink psd_segment_duration/psd_offset."
-                ) from e
+            if psd_full_data:
+                # Use the entire supplied stretch (e.g. the full 1024 s
+                # BayesWave-cleaned file) for the Welch estimate — far more
+                # averages than a short off-source stub. The in-band signal is
+                # ~tens of seconds and is negligible in a >10x longer PSD.
+                off = ts
+            else:
+                if event_gps is None:
+                    raise ValueError(
+                        "estimate_psd=True requires event_gps so the off-source "
+                        "window can be placed (or set psd_full_data=True)."
+                    )
+                off_end   = event_gps - psd_offset
+                off_start = off_end - psd_segment_duration
+                try:
+                    off = ts.crop(off_start, off_end)
+                except Exception as e:
+                    raise ValueError(
+                        f"Off-source PSD window [{off_start}, {off_end}] is "
+                        f"outside the TimeSeries for {ifo.name}. Fetch more "
+                        "data or shrink psd_segment_duration/psd_offset."
+                    ) from e
             if abs(float(off.sample_rate.value) - ifo.grid.sampling_rate) > 1e-6:
                 off = off.resample(ifo.grid.sampling_rate)
+            # PSD Welch segment length. Preserve the historical default
+            # (psd_from_data's own N//8) for existing callers; only change it
+            # when the caller explicitly opts in via psd_nperseg, or uses the
+            # full-data path (where matching the analysis-segment length keeps
+            # the PSD df = analysis df and resolves narrow lines).
+            if psd_nperseg is not None:
+                nperseg = int(psd_nperseg)
+            elif psd_full_data:
+                nperseg = int(ifo.grid.n_samples)
+            else:
+                nperseg = None    # unchanged behaviour: psd_from_data picks N//8
             _, psd = psd_from_data(
                 np.asarray(off.value, dtype=np.float64),
                 sampling_rate=ifo.grid.sampling_rate,
+                nperseg=nperseg,
                 target_freqs=ifo.grid.frequency_domain_array,
             )
             ifo.psd = jnp.asarray(psd)
@@ -536,6 +565,15 @@ def attach_data_to_network(
             f"Network: {[i.name for i in network.interferometers]}; "
             f"Data:    {list(timeseries_dict)}"
         )
+
+    # Write GMST(event) so the projection / antenna patterns use the correct
+    # Earth orientation. attach_event_to_network sets this from the event
+    # record; the direct-data (e.g. BayesWave-deglitched) path must set it
+    # from the supplied event_gps, otherwise gmst stays 0 and every antenna
+    # response is evaluated at the wrong sidereal time.
+    if event_gps is not None:
+        network.gmst = gmst_from_gps(float(event_gps))
+
     return populated
 
 

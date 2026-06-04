@@ -636,9 +636,11 @@ def build_full_likelihood_time_marg(
             h_b   = _project_at_freqs(waveform_fn, params, freqs_band, ifo, gmst=_gmst)
             dd_i  = jnp.sum((jnp.abs(d_b) ** 2) * w_b)
             hh_i  = jnp.sum((jnp.abs(h_b) ** 2) * w_b)
-            # Strip the tc_0 phase, then convolve with phase_mat_full to shift to tc_k.
-            h_noTc       = h_b * jnp.exp(1j * 2.0 * jnp.pi * freqs_band * tc_0)
-            integrand    = jnp.conj(d_b) * h_noTc * w_b
+            # h_b is projected at tc_0 (its phase already carries exp(-2πi f tc_0));
+            # phase_mat_full applies the *relative* shift exp(-2πi f Δtc), Δtc=tc_k-tc_0,
+            # so the net template phase is exp(-2πi f tc_k) — same convention as the RB
+            # path (A0 keeps the tc_0 phase). Do NOT strip tc_0 here.
+            integrand    = jnp.conj(d_b) * h_b * w_b
             cross_tc     = jnp.real(phase_mat_full @ integrand)      # (N_tc,)
             log_L_tc     = log_L_tc + (-0.5) * (dd_i - 2.0 * cross_tc + hh_i)
         return jax.scipy.special.logsumexp(log_L_tc) - log_N_tc
@@ -688,8 +690,10 @@ def build_full_likelihood_tc_phi_marg(
             dd_i  = jnp.sum((jnp.abs(d_b) ** 2) * w_b)
             hh_i  = jnp.sum((jnp.abs(h_b) ** 2) * w_b)
             const = const + (-0.5) * (dd_i + hh_i)
-            h_noTc    = h_b * jnp.exp(1j * 2.0 * jnp.pi * freqs_band * tc_0)
-            integrand = jnp.conj(d_b) * h_noTc * w_b
+            # h_b already carries the tc_0 phase; phase_mat_full applies the relative
+            # shift exp(-2πi f Δtc) only (Δtc=tc_k-tc_0), matching the RB convention.
+            # Stripping tc_0 here and re-adding only Δtc drops tc_0 from the template.
+            integrand = jnp.conj(d_b) * h_b * w_b
             W_tc      = W_tc + (phase_mat_full @ integrand)
         x = jnp.abs(W_tc)
         log_bessel  = jnp.log(jax.scipy.special.i0e(x)) + x
