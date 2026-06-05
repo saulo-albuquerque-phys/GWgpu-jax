@@ -186,7 +186,12 @@ KNOWN_EVENTS: dict = {
     ),
     "GW170817": EventInfo(
         name="GW170817",
-        gps_time=1187008882.4,
+        # Geocenter coalescence time. The catalog-rounded 1187008882.4 placed the
+        # merger ~27.65 ms after TC0 (=0.875·duration), far outside a narrow tc-marg
+        # window → spins/q railed to the prior corner. Measured from the BWCLEANED
+        # data (network matched-filter peak at +27.65 ms): use the precise value so
+        # TC0 lands on the merger and a narrow tc grid suffices.
+        gps_time=1187008882.4277,
         detectors=("H1", "L1", "V1"),
         bandpass=(23.0, 2048.0),
         notes="First BNS detection. L1 contains a loud glitch ~1.1 s "
