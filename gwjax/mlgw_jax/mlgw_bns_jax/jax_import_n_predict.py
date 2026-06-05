@@ -54,8 +54,28 @@ _ACTIVATIONS: dict[str, Callable] = {
 # Natural cubic spline interpolation (JAX-traceable)
 # ================================================================== #
 
+def _solve_linear_recurrence(a, b, s_init):
+    """Parallel (associative-scan) solve of the first-order linear recurrence
+    ``s[i] = a[i] * s[i-1] + b[i]``  with ``s[-1] = s_init``.
+
+    Each step is an affine map ``f_i(s) = a[i]*s + b[i]``; affine composition
+    ``(a2, b2) o (a1, b1) = (a2*a1, a2*b1 + b2)`` is associative, so an
+    ``associative_scan`` computes the whole recurrence in O(log n) parallel
+    depth instead of the O(n) serial ``lax.scan``. This is the GPU-friendly,
+    default tridiagonal-solve path for the cubic spline.
+    """
+    def _compose(left, right):
+        a_l, b_l = left
+        a_r, b_r = right
+        return (a_r * a_l, a_r * b_l + b_r)
+
+    A, B = jax.lax.associative_scan(_compose, (a, b))
+    return A * s_init + B
+
+
 def _make_cubic_spline_jax(
     x_ds_np: np.ndarray,
+    parallel: bool = True,
 ) -> Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
     """Build a JAX-jittable natural cubic spline evaluator for a fixed
     knot grid.  Knot positions are frozen; values and query points are
@@ -99,22 +119,34 @@ def _make_cubic_spline_jax(
 
         d0 = rhs[0] * inv_d_jax[0]
 
-        def fwd_step(d_prev, inputs):
-            e_i, inv_di, r_i = inputs
-            d_new = (r_i - e_i * d_prev) * inv_di
-            return d_new, d_new
+        if parallel:
+            # forward substitution as a parallel linear recurrence:
+            #   d_rest[k] = (-e * inv_d) * d_prev + (rhs * inv_d)
+            d_rest = _solve_linear_recurrence(
+                -e_jax * inv_d_jax[1:], rhs[1:] * inv_d_jax[1:], d0)
+        else:
+            def fwd_step(d_prev, inputs):
+                e_i, inv_di, r_i = inputs
+                d_new = (r_i - e_i * d_prev) * inv_di
+                return d_new, d_new
 
-        _, d_rest = jax.lax.scan(fwd_step, d0, (e_jax, inv_d_jax[1:], rhs[1:]))
+            _, d_rest = jax.lax.scan(fwd_step, d0, (e_jax, inv_d_jax[1:], rhs[1:]))
         d_star = jnp.concatenate([jnp.array([d0]), d_rest])
 
         x_last = d_star[-1]
 
-        def back_step(x_next, inputs):
-            c_i, d_i = inputs
-            x_i = d_i - c_i * x_next
-            return x_i, x_i
+        if parallel:
+            # back substitution (reversed) as a parallel linear recurrence:
+            #   x[k] = (-c) * x_next + d
+            xs_rev = _solve_linear_recurrence(
+                -c_star_jax[::-1], d_star[:-1][::-1], x_last)
+        else:
+            def back_step(x_next, inputs):
+                c_i, d_i = inputs
+                x_i = d_i - c_i * x_next
+                return x_i, x_i
 
-        _, xs_rev = jax.lax.scan(back_step, x_last, (c_star_jax[::-1], d_star[:-1][::-1]))
+            _, xs_rev = jax.lax.scan(back_step, x_last, (c_star_jax[::-1], d_star[:-1][::-1]))
         m_interior = jnp.concatenate([xs_rev[::-1], jnp.array([x_last])])
         m = jnp.concatenate([jnp.array([0.0]), m_interior, jnp.array([0.0])])
 
@@ -481,7 +513,7 @@ def _smoothly_connect_with_zero_jax(f_natural, pn_amp, pivot_1=0.01, pivot_2=0.0
 # Main entry point: load model + build predictor
 # ================================================================== #
 
-def load_predict(path: str) -> Callable:
+def load_predict(path: str, parallel_spline: bool = True) -> Callable:
     """Load an exported HDF5 model and return a JAX-jittable
     ``predict(params, frequencies_hz, total_mass, distance_mpc, inclination) -> (hp, hc)``
     function.
@@ -534,8 +566,8 @@ def load_predict(path: str) -> Callable:
     phi_freqs_hz_jax = jnp.array(phi_freqs_hz_np, dtype=jnp.float64)
 
     # Build cubic-spline evaluators (frozen knots)
-    amp_spline = _make_cubic_spline_jax(amp_freqs_hz_np)
-    phi_spline = _make_cubic_spline_jax(phi_freqs_hz_np)
+    amp_spline = _make_cubic_spline_jax(amp_freqs_hz_np, parallel=parallel_spline)
+    phi_spline = _make_cubic_spline_jax(phi_freqs_hz_np, parallel=parallel_spline)
 
     # ────────────────────────────────────────────────────────────── #
     # Internal functions (closures over frozen data)
