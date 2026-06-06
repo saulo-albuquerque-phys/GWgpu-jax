@@ -64,6 +64,11 @@ from gwjax.gwjax_likelihood_utils import (
     log_likelihood_ifo,
     precompute_weight,
 )
+from gwjax.gwjax_prior_definitions import (
+    PriorSpec,
+    resolve_priors,
+    sample_prior,
+)
 
 
 # ── Result container ─────────────────────────────────────────────────────────
@@ -172,12 +177,29 @@ class GWjaxNestedSampler:
         also pass the output of :func:`build_ripplegw_waveform_fn` or any
         function you wrote yourself.
     param_bounds : dict[str, tuple[float, float]]
-        Uniform-prior bounds for the parameters that NS will sample. All
+        Prior bounds for the parameters that NS will sample. All
         other parameters consumed by ``waveform_fn`` or the projection
-        layer must be supplied via ``fixed_params``.
+        layer must be supplied via ``fixed_params``. Each entry's
+        ``(a, b)`` defines the support; by default each parameter gets a
+        *uniform* prior over that interval (see ``priors`` to override).
     fixed_params : dict[str, float] or None
         Constant parameter values that are not sampled. Merged into the
         particle dict before each waveform call.
+    priors : dict[str, PriorSpec | str] or None, optional
+        Opt-in non-uniform priors. Maps a (subset of) sampled parameter
+        name(s) to either a
+        :class:`~gwjax.gwjax_prior_definitions.PriorSpec` instance or a
+        string alias (``"sin"``, ``"cos"``, ``"volumetric"``, ``"uniform"``;
+        see :data:`gwjax.gwjax_prior_definitions.PRIOR_ALIASES`). String
+        aliases build their support from the matching ``param_bounds``
+        entry. Any parameter not named here keeps the default uniform prior,
+        so ``priors=None`` reproduces the previous behaviour exactly.
+
+        Example::
+
+            priors = {"inclination": "sin",       # p(θ) ∝ sin θ
+                      "dec":         "cos",        # p(δ) ∝ cos δ
+                      "distance":    "volumetric"} # p(d) ∝ d²
     gmst : float, optional
         Greenwich Mean Sidereal Time [rad].
 
@@ -196,6 +218,7 @@ class GWjaxNestedSampler:
         param_bounds:   dict,
         fixed_params:   dict | None = None,
         gmst:           float | None = None,
+        priors:         dict | None = None,
     ) -> None:
         self.network      = network
         # Accept either a raw (params, grid_array) -> (hp, hc) callable
@@ -209,6 +232,11 @@ class GWjaxNestedSampler:
         self.waveform_fn  = waveform_fn
         self.param_bounds = dict(param_bounds)
         self.fixed_params = dict(fixed_params or {})
+        # Resolve per-parameter prior specs. ``priors=None`` (or an empty
+        # dict) yields a plain Uniform over every ``param_bounds`` entry,
+        # i.e. identical to the previous ``bns.utils.uniform_prior`` path.
+        self.priors        = dict(priors or {})
+        self._prior_specs  = resolve_priors(self.param_bounds, self.priors)
         # If user didn't pass gmst, default to whatever the network carries
         # (set by ``attach_event_to_network`` for real-data PE, or 0.0
         # otherwise for synthetic injections).
@@ -328,9 +356,11 @@ class GWjaxNestedSampler:
 
         k_init, k_loop, k_post = jax.random.split(rng_key, 3)
 
-        # Initial live particles drawn from the uniform prior.
-        particles, logprior_fn = bns.utils.uniform_prior(
-            k_init, num_live, self.param_bounds,
+        # Initial live particles drawn from the (possibly non-uniform) prior.
+        # With the default ``priors=None`` every spec is Uniform, so this is
+        # equivalent to ``bns.utils.uniform_prior``.
+        particles, logprior_fn = sample_prior(
+            k_init, num_live, self._prior_specs,
         )
 
         algo = bns.nss.as_top_level_api(

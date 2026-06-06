@@ -58,6 +58,7 @@ import jax.numpy as jnp
 import blackjax.ns as bns
 
 from gwjax.gwjax_samplers import GWjaxNestedSampler
+from gwjax.gwjax_prior_definitions import sample_prior
 
 
 # ── Result container ─────────────────────────────────────────────────────────
@@ -205,9 +206,12 @@ class GWjaxTwoPhaseNestedSampler(GWjaxNestedSampler):
 
         k_init, k_p1, k_p2, k_post = jax.random.split(rng_key, 4)
 
-        # Initial live particles from the uniform prior
-        particles, logprior_fn = bns.utils.uniform_prior(
-            k_init, num_live, self.param_bounds,
+        # Initial live particles from the (possibly non-uniform) prior.
+        # ``self._prior_specs`` is built by the inherited constructor from
+        # ``param_bounds`` + the optional ``priors`` kwarg; with the default
+        # ``priors=None`` every spec is Uniform (== bns.utils.uniform_prior).
+        particles, logprior_fn = sample_prior(
+            k_init, num_live, self._prior_specs,
         )
 
         # ── Phase 1: high num_delete, fast bulk exploration ──────────────────

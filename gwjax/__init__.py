@@ -63,6 +63,21 @@ from gwjax.gwjax_network_ifos_utils  import Network
 # User-supplied waveform wrapper — pure JAX, no heavy backends.
 from gwjax.gwjax_custom_waveform import CustomWaveform
 
+# Non-uniform prior definitions — pure JAX, jit-traceable, drop-in for the
+# blackjax-ns prior. Lightweight (jax only), so eagerly re-exported.
+from gwjax.gwjax_prior_definitions import (
+    PriorSpec,
+    Uniform,
+    SinUniform,
+    CosUniform,
+    PowerLaw,
+    Volumetric,
+    build_prior,
+    sample_prior,
+    resolve_priors,
+    PRIOR_ALIASES,
+)
+
 # Nested sampler — pure blackjax-ns + ripplegw-light, no TF at import time.
 from gwjax.gwjax_samplers import (
     GWjaxNestedSampler,
@@ -125,6 +140,17 @@ __all__ = [
     "psd_aLIGO", "psd_AdV", "psd_KAGRA", "psd_ET_D", "psd_CE", "psd_flat",
     # user-supplied waveform wrapper
     "CustomWaveform",
+    # prior definitions (non-uniform priors)
+    "PriorSpec",
+    "Uniform",
+    "SinUniform",
+    "CosUniform",
+    "PowerLaw",
+    "Volumetric",
+    "build_prior",
+    "sample_prior",
+    "resolve_priors",
+    "PRIOR_ALIASES",
     # samplers
     "GWjaxNestedSampler",
     "NestedSamplingResult",
