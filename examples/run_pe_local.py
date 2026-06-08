@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """run_pe_local.py
 ==================
-Full GWjax parameter-estimation pipeline as a single CLI script.
+Full GWgpu_jax parameter-estimation pipeline as a single CLI script.
 
 Two modes:
 
@@ -12,7 +12,7 @@ Two modes:
   * ``--real``
       Fetch real GW150914 strain from GWOSC, estimate per-IFO PSDs from
       off-source data via Welch, and run the same sampler against it.
-      Requires the ``[data]`` extra (``pip install "gwjax[data]"``).
+      Requires the ``[data]`` extra (``pip install "gwgpu_jax[data]"``).
 
 Usage
 -----
@@ -37,7 +37,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-import gwjax
+import gwgpu_jax
 
 
 # Reference parameters used both as the synthetic injection and as plot truths
@@ -54,11 +54,11 @@ GW150914_REFERENCE = dict(
 
 def build_network(duration: float, sampling_rate: float, f_min: float, f_max: float):
     """Construct a 2-detector H1/L1 network on a shared time/frequency grid."""
-    grid = gwjax.TimeFrequencyGrid(
+    grid = gwgpu_jax.TimeFrequencyGrid(
         duration=duration, sampling_rate=sampling_rate,
         f_min=f_min, f_max=f_max,
     )
-    network = gwjax.Network.from_names(["H1", "L1"], grid)
+    network = gwgpu_jax.Network.from_names(["H1", "L1"], grid)
     return network, grid
 
 
@@ -66,7 +66,7 @@ def setup_synthetic(network, grid, seed: int):
     """Generate aLIGO Gaussian noise + inject GW150914-like IMRPhenomD signal."""
     network.generate_noise(seed=seed)
 
-    waveform_fn = gwjax.build_ripplegw_waveform_fn("IMRPhenomD", f_ref=20.0)
+    waveform_fn = gwgpu_jax.build_ripplegw_waveform_fn("IMRPhenomD", f_ref=20.0)
     hp, hc = waveform_fn(GW150914_REFERENCE, grid.frequency_domain_array)
     h_dict = network.project_waveform(
         hp, hc,
@@ -93,7 +93,7 @@ def setup_real():
         duration=4.0, sampling_rate=4096.0, f_min=20.0, f_max=1024.0,
     )
     print("Fetching GW150914 from GWOSC (requires gwpy + internet) …")
-    gwjax.compat.attach_event_to_network(
+    gwgpu_jax.compat.attach_event_to_network(
         network, "GW150914",
         estimate_psd=True,
         psd_segment_duration=32.0,
@@ -106,7 +106,7 @@ def setup_real():
 
 def make_sampler(network, fixed_params, seed: int, two_phase: bool = False):
     """Build a sampler with broad uniform priors on the marginalised params."""
-    waveform_fn = gwjax.build_ripplegw_waveform_fn("IMRPhenomD", f_ref=20.0)
+    waveform_fn = gwgpu_jax.build_ripplegw_waveform_fn("IMRPhenomD", f_ref=20.0)
 
     param_bounds = {
         "m1":          (10.0, 80.0),
@@ -119,8 +119,8 @@ def make_sampler(network, fixed_params, seed: int, two_phase: bool = False):
         "tc":          (-0.05, 0.05),
     }
 
-    cls = (gwjax.GWjaxTwoPhaseNestedSampler if two_phase
-           else gwjax.GWjaxNestedSampler)
+    cls = (gwgpu_jax.GWgpu_jaxTwoPhaseNestedSampler if two_phase
+           else gwgpu_jax.GWgpu_jaxNestedSampler)
     sampler = cls(
         network=network,
         waveform_fn=waveform_fn,
@@ -207,7 +207,7 @@ def main():
     parser.add_argument("--corner-plot",      type=str, default="corner.png")
     # ── two-phase NS (bulk + accurate tail) ─────────────────────────────
     parser.add_argument("--two-phase", action="store_true",
-                        help="Use GWjaxTwoPhaseNestedSampler: a fast batch-delete "
+                        help="Use GWgpu_jaxTwoPhaseNestedSampler: a fast batch-delete "
                              "phase 1 followed by a Skilling-classical phase 2.")
     parser.add_argument("--phase1-num-delete", type=int, default=None,
                         help="Particles deleted per phase-1 iteration. "

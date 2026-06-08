@@ -2,22 +2,22 @@ import os, sys, time, contextlib, argparse
 os.environ["TF_CPP_MIN_LOG_LEVEL"]="3"
 import jax; jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp, numpy as np
-import gwjax
+import gwgpu_jax
 
 ap=argparse.ArgumentParser()
 ap.add_argument("--grid",choices=["fixed","old"],default="fixed")
 ap.add_argument("--modes",choices=["all","22"],default="all")
 ap.add_argument("--num-live",type=int,default=400)
-ap.add_argument("--out",default="/Users/ut/Documents/GitHub/GWjax/.tmpwork/res_fixed.txt")
+ap.add_argument("--out",default="/Users/ut/Documents/GitHub/GWgpu_jax/.tmpwork/res_fixed.txt")
 A=ap.parse_args()
 
 with open(os.devnull,'w') as dn, contextlib.redirect_stdout(dn), contextlib.redirect_stderr(dn):
-    from gwjax.mlgw_jax.mlgw_bbh_jax_waveform_generator import MLGWBBHGenerator, hphc_td_to_fd
+    from gwgpu_jax.mlgw_jax.mlgw_bbh_jax_waveform_generator import MLGWBBHGenerator, hphc_td_to_fd
     bbh=MLGWBBHGenerator(model=4)
 
-grid=gwjax.TimeFrequencyGrid(duration=4.0,sampling_rate=4096.0,f_min=20.0,f_max=1024.0)
-net=gwjax.Network.from_names(["H1","L1"],grid)
-gwjax.compat.attach_event_to_network(net,"GW150914",estimate_psd=True,
+grid=gwgpu_jax.TimeFrequencyGrid(duration=4.0,sampling_rate=4096.0,f_min=20.0,f_max=1024.0)
+net=gwgpu_jax.Network.from_names(["H1","L1"],grid)
+gwgpu_jax.compat.attach_event_to_network(net,"GW150914",estimate_psd=True,
     psd_segment_duration=32.0,psd_offset=8.0,verbose=False)
 
 dt=grid.dt; N=grid.n_samples
@@ -42,7 +42,7 @@ PB={"m1":(10.,80.),"m2":(10.,80.),"chi_1":(-0.9,0.9),"chi_2":(-0.9,0.9),
     "ra":(0.,2*float(jnp.pi)),"dec":(-float(jnp.pi)/2,float(jnp.pi)/2),
     "psi":(0.,float(jnp.pi)),"phi_c":(0.,2*float(jnp.pi)),
     "tc":(TC-0.5,TC+0.5)}
-sampler=gwjax.GWjaxTwoPhaseNestedSampler(network=net,waveform_fn=waveform_fn,
+sampler=gwgpu_jax.GWgpu_jaxTwoPhaseNestedSampler(network=net,waveform_fn=waveform_fn,
     param_bounds=PB,fixed_params={},gmst=None)
 
 t0=time.perf_counter()

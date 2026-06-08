@@ -1,6 +1,6 @@
-# GWjax
+# GWgpu_jax
 
-GWjax provides a user-friendly interface between JAX waveform generators and JAX sampling algorithms for GPU-accelerated parameter estimation in gravitational wave data analysis. It supplies JAX likelihoods, detector-network construction, and real-data import pipelines.
+GWgpu_jax provides a user-friendly interface between JAX waveform generators and JAX sampling algorithms for GPU-accelerated parameter estimation in gravitational wave data analysis. It supplies JAX likelihoods, detector-network construction, and real-data import pipelines.
 
 ## Waveform generators
 
@@ -10,7 +10,7 @@ GWjax provides a user-friendly interface between JAX waveform generators and JAX
 | mlgw_bns_jax | ML-GW-BNS | frequency | BNS | local subdir |
 | mlgw_bbh_jax | SEOBNRv5HM (model_4) | time | BBH | [Phys.Rev.D 108 (2023)](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.108.124035) |
 
-mlgw_bns_jax and mlgw_bbh_jax live under `gwjax/mlgw_jax/` and are loaded via `sys.path` — no separate pip install is required.
+mlgw_bns_jax and mlgw_bbh_jax live under `gwgpu_jax/mlgw_jax/` and are loaded via `sys.path` — no separate pip install is required.
 
 ## Sampler
 
@@ -30,19 +30,19 @@ The repo is currently **private**, so a [GitHub Personal Access Token](https://g
 
 ```bash
 # Set the token as a shell variable (don't echo it into your history).
-export GH_TOKEN=$(< ~/.config/gwjax_pat.txt)   # or read -s -p "PAT: " GH_TOKEN
+export GH_TOKEN=$(< ~/.config/gwgpu_jax_pat.txt)   # or read -s -p "PAT: " GH_TOKEN
 
 # CPU only (laptops, macOS, plain Linux)
-pip install "gwjax @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWjax.git"
+pip install "gwgpu_jax @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWgpu_jax.git"
 
 # + real-data ingest (gwpy + GWOSC)
-pip install "gwjax[data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWjax.git"
+pip install "gwgpu_jax[data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWgpu_jax.git"
 
 # + NVIDIA GPU (CUDA 12)
-pip install "gwjax[gpu,data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWjax.git"
+pip install "gwgpu_jax[gpu,data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWgpu_jax.git"
 
 # + heavy ML waveform models (TensorFlow + tf2jax for SEOBNRv5HM / mlgw_bns_jax)
-pip install "gwjax[mlgw,data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWjax.git"
+pip install "gwgpu_jax[mlgw,data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWgpu_jax.git"
 ```
 
 > When the repo becomes public, drop `$GH_TOKEN@` from every URL.
@@ -67,24 +67,24 @@ if not GH_TOKEN:
     GH_TOKEN = getpass.getpass("GitHub PAT: ")
 os.environ["GH_TOKEN"] = GH_TOKEN
 
-!pip install -q "gwjax[data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWjax.git"
+!pip install -q "gwgpu_jax[data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWgpu_jax.git"
 
 del os.environ["GH_TOKEN"]; del GH_TOKEN
 
-import jax, gwjax
+import jax, gwgpu_jax
 print(jax.devices())                       # → [CudaDevice(id=0), …]
-grid = gwjax.TimeFrequencyGrid(4.0, 2048.0, f_min=20.0, f_max=512.0)
-net  = gwjax.Network.from_names(["H1", "L1"], grid)
-gwjax.compat.attach_event_to_network(net, "GW150914", estimate_psd=True)
+grid = gwgpu_jax.TimeFrequencyGrid(4.0, 2048.0, f_min=20.0, f_max=512.0)
+net  = gwgpu_jax.Network.from_names(["H1", "L1"], grid)
+gwgpu_jax.compat.attach_event_to_network(net, "GW150914", estimate_psd=True)
 ```
 
-The full ready-to-run version is in [`examples/gwjax_colab_pe.ipynb`](examples/gwjax_colab_pe.ipynb).
+The full ready-to-run version is in [`examples/gwgpu_jax_colab_pe.ipynb`](examples/gwgpu_jax_colab_pe.ipynb).
 
 ### Editable local install (development)
 
 ```bash
-git clone https://github.com/saulo-albuquerque-phys/GWjax.git
-cd GWjax
+git clone https://github.com/saulo-albuquerque-phys/GWgpu_jax.git
+cd GWgpu_jax
 pip install -e ".[data,mlgw,samplers]"     # all extras except [gpu]
 ```
 
@@ -130,7 +130,7 @@ pip install "numpy==1.26.4"
 # Remaining dependencies
 pip install -r requirements-full.txt
 
-# GWjax in editable mode
+# GWgpu_jax in editable mode
 pip install -e .
 ```
 

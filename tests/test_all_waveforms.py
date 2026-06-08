@@ -8,7 +8,7 @@ import sys
 import os
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-sys.path.insert(0, "gwjax/mlgw_jax/mlgw_bbh_jax")
+sys.path.insert(0, "gwgpu_jax/mlgw_jax/mlgw_bbh_jax")
 
 import jax
 import jax.numpy as jnp
@@ -32,11 +32,11 @@ print("=" * 60)
 print("2. mlgw_bns_jax  |  ML-BNS  |  frequency-domain  |  BNS")
 print("=" * 60)
 
-sys.path.insert(0, "gwjax/mlgw_jax/mlgw_bns_jax")
+sys.path.insert(0, "gwgpu_jax/mlgw_jax/mlgw_bns_jax")
 jax.config.update("jax_enable_x64", True)
 from jax_import_n_predict import load_predict  # noqa: E402
 
-model_path = "gwjax/mlgw_jax/mlgw_bns_jax/mlgw_bns_jax_model.h5"
+model_path = "gwgpu_jax/mlgw_jax/mlgw_bns_jax/mlgw_bns_jax_model.h5"
 predict_fn = load_predict(model_path)
 
 freqs = jnp.linspace(20.0, 1024.0, 2048)

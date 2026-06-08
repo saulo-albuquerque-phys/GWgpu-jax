@@ -4,7 +4,7 @@ test_mlgw_bns_waveforms.py
 Generate and plot BNS waveforms from the mlgw_bns JAX model.
 
 Waveform: mlgw_bns (ML surrogate trained on TEOBResumS)
-Model   : gwjax/mlgw_jax/mlgw_bns_jax/mlgw_bns_jax_model.h5
+Model   : gwgpu_jax/mlgw_jax/mlgw_bns_jax/mlgw_bns_jax_model.h5
 Output  : mlgw_bns_waveforms.png
 
 Parameter convention:
@@ -27,7 +27,7 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-from gwjax.mlgw_jax.mlgw_bns_jax_waveform_generator import MLGWBNSGenerator
+from gwgpu_jax.mlgw_jax.mlgw_bns_jax_waveform_generator import MLGWBNSGenerator
 
 # ── Frequency grid ────────────────────────────────────────────────────────────
 F_MIN   = 20.0     # Hz

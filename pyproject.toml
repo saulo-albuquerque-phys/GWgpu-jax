@@ -1,8 +1,8 @@
 # ============================================================
-# GWjax — packaging metadata
+# GWgpu_jax — packaging metadata
 # Build backend: Hatchling (modern, glob-aware excludes).
 # Install (Colab GPU runtime):
-#   !pip install -q "gwjax[data] @ git+https://github.com/saulo-albuquerque-phys/GWjax.git"
+#   !pip install -q "gwgpu_jax[data] @ git+https://github.com/saulo-albuquerque-phys/GWgpu_jax.git"
 # Install (local, editable, CPU):
 #   pip install -e ".[data]"
 # ============================================================
@@ -13,7 +13,7 @@ build-backend = "hatchling.build"
 
 
 [project]
-name            = "gwjax"
+name            = "gwgpu_jax"
 version         = "0.1.0"
 description     = "JAX-based gravitational-wave parameter-estimation toolkit (waveforms, interferometer networks, nested sampling)."
 readme          = "README.md"
@@ -54,7 +54,7 @@ dependencies = [
     "h5py>=3.10",
     "matplotlib>=3.7",
     # ripplegw's top-level helper layout changed between 0.0.9 and 0.0.10;
-    # we no longer import ms_to_Mc_eta from it (inlined inside gwjax) but
+    # we no longer import ms_to_Mc_eta from it (inlined inside gwgpu_jax) but
     # IMRPhenom* waveform imports must still match the package layout.
     "ripplegw>=0.0.9",
     "blackjax @ git+https://github.com/handley-lab/blackjax.git@dedbf11da33eb5ca286f6731e2c51f2b254b953f",
@@ -95,21 +95,21 @@ dev = ["pytest>=7", "pytest-xdist>=3", "hatchling>=1.18"]
 
 
 [project.urls]
-Homepage   = "https://github.com/saulo-albuquerque-phys/GWjax"
-Repository = "https://github.com/saulo-albuquerque-phys/GWjax"
-Issues     = "https://github.com/saulo-albuquerque-phys/GWjax/issues"
+Homepage   = "https://github.com/saulo-albuquerque-phys/GWgpu_jax"
+Repository = "https://github.com/saulo-albuquerque-phys/GWgpu_jax"
+Issues     = "https://github.com/saulo-albuquerque-phys/GWgpu_jax/issues"
 
 
 # ── Build configuration ──────────────────────────────────────────────────────
-# Ship the `gwjax/` package plus the runtime-needed mlgw subpackages, but
+# Ship the `gwgpu_jax/` package plus the runtime-needed mlgw subpackages, but
 # *exclude* the heavy research artefacts (paper drafts, training scripts,
 # docs builds — about 700 MB total inside mlgw_bbh_jax/).
 [tool.hatch.build.targets.wheel]
-packages = ["gwjax"]
+packages = ["gwgpu_jax"]
 
 [tool.hatch.build]
 include = [
-    "gwjax/**",
+    "gwgpu_jax/**",
     "README.md",
     "LICENSE*",
 ]
@@ -125,13 +125,13 @@ exclude = [
     "**/.ipynb_checkpoints/**",
 
     # mlgw_bbh_jax research artefacts (NOT needed at runtime)
-    "gwjax/mlgw_jax/mlgw_bbh_jax/paper/**",
-    "gwjax/mlgw_jax/mlgw_bbh_jax/paper_NN/**",
-    "gwjax/mlgw_jax/mlgw_bbh_jax/paper_jax/**",
-    "gwjax/mlgw_jax/mlgw_bbh_jax/dev/**",
-    "gwjax/mlgw_jax/mlgw_bbh_jax/docs/**",
-    "gwjax/mlgw_jax/mlgw_bbh_jax/examples/**",
-    "gwjax/mlgw_jax/mlgw_bbh_jax/bin/**",
+    "gwgpu_jax/mlgw_jax/mlgw_bbh_jax/paper/**",
+    "gwgpu_jax/mlgw_jax/mlgw_bbh_jax/paper_NN/**",
+    "gwgpu_jax/mlgw_jax/mlgw_bbh_jax/paper_jax/**",
+    "gwgpu_jax/mlgw_jax/mlgw_bbh_jax/dev/**",
+    "gwgpu_jax/mlgw_jax/mlgw_bbh_jax/docs/**",
+    "gwgpu_jax/mlgw_jax/mlgw_bbh_jax/examples/**",
+    "gwgpu_jax/mlgw_jax/mlgw_bbh_jax/bin/**",
 
     # Repo-level images and notebooks
     "*.png",
@@ -141,7 +141,7 @@ exclude = [
 
 # Include non-Python assets (model weights, READMEs inside subpackages).
 [tool.hatch.build.targets.wheel.shared-data]
-# Nothing here; we ship everything as part of the gwjax package tree.
+# Nothing here; we ship everything as part of the gwgpu_jax package tree.
 
 [tool.hatch.metadata]
 allow-direct-references = true   # required for the blackjax git URL

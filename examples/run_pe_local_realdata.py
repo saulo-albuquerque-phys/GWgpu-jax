@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """run_pe_local_realdata.py
 ==========================
-Full GWjax parameter-estimation pipeline against **real** GWOSC strain.
+Full GWgpu_jax parameter-estimation pipeline against **real** GWOSC strain.
 
 This is the real-data counterpart of ``examples/run_pe_local.py``. The
 synthetic-injection branch is intentionally absent — every run pulls
@@ -11,7 +11,7 @@ adaptive nested sampler on the residual.
 
 Default event: **GW150914** (Phys. Rev. Lett. 116, 061102).
 
-Requires the ``[data]`` extra (``pip install "gwjax[data]"``) — needs
+Requires the ``[data]`` extra (``pip install "gwgpu_jax[data]"``) — needs
 network access to ``gwosc.org``.
 
 Usage
@@ -41,7 +41,7 @@ Caveats
 - The PSD is a Welch estimate of a 32-s segment ending 8 s before the
   trigger. This is **not** the LVC-released PSD; expect ~10 % differences
   in log-likelihood relative to published numbers.
-- **Coalescence-time convention.** ``gwjax.compat.attach_event_to_network``
+- **Coalescence-time convention.** ``gwgpu_jax.compat.attach_event_to_network``
   crops the data so the merger sits at ``0.875 * duration`` seconds
   into the segment (3.5 s into a 4-s GW150914 segment). The ripplegw
   IMRPhenomD ``tc`` parameter shifts the template merger to ``t = tc``,
@@ -68,7 +68,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-import gwjax
+import gwgpu_jax
 
 
 # ── Published-median plot truths (visual reference only) ─────────────────────
@@ -111,13 +111,13 @@ EVENT_SETTINGS = {
 def setup_network(event: str):
     """Build the IFO network with event-appropriate grid settings."""
     cfg = EVENT_SETTINGS.get(event, EVENT_SETTINGS["GW150914"])
-    grid = gwjax.TimeFrequencyGrid(
+    grid = gwgpu_jax.TimeFrequencyGrid(
         duration=cfg["duration"], sampling_rate=cfg["sampling_rate"],
         f_min=cfg["f_min"], f_max=cfg["f_max"],
     )
-    info = gwjax.compat.get_event_info(event)
+    info = gwgpu_jax.compat.get_event_info(event)
     # Use every IFO the event publicly released.
-    network = gwjax.Network.from_names(list(info.detectors), grid)
+    network = gwgpu_jax.Network.from_names(list(info.detectors), grid)
     print(f"Grid    : {grid}")
     print(f"Network : {[i.name for i in network.interferometers]}")
     return network, grid, info
@@ -128,7 +128,7 @@ def fetch_and_attach(network, event: str, deglitched_files: dict | None,
     """Pull strain from GWOSC, estimate Welch PSDs, attach to every IFO."""
     print(f"\nFetching {event} from GWOSC (gwpy.TimeSeries.fetch_open_data) …")
     t0 = time.perf_counter()
-    populated = gwjax.compat.attach_event_to_network(
+    populated = gwgpu_jax.compat.attach_event_to_network(
         network, event,
         estimate_psd          = True,
         psd_segment_duration  = psd_segment_duration,
@@ -149,7 +149,7 @@ def make_sampler(network, tc_center: float, two_phase: bool = False):
     ``0.875 * duration`` seconds into the segment, and ripplegw's
     ``tc`` parameter places the template merger at ``t = tc``.
     """
-    waveform_fn = gwjax.build_ripplegw_waveform_fn("IMRPhenomD", f_ref=20.0)
+    waveform_fn = gwgpu_jax.build_ripplegw_waveform_fn("IMRPhenomD", f_ref=20.0)
 
     param_bounds = {
         "m1":          (5.0,  100.0),
@@ -165,8 +165,8 @@ def make_sampler(network, tc_center: float, two_phase: bool = False):
     }
     fixed_params = {"chi_1": 0.0, "chi_2": 0.0, "phi_c": 0.0}
 
-    cls = (gwjax.GWjaxTwoPhaseNestedSampler if two_phase
-           else gwjax.GWjaxNestedSampler)
+    cls = (gwgpu_jax.GWgpu_jaxTwoPhaseNestedSampler if two_phase
+           else gwgpu_jax.GWgpu_jaxNestedSampler)
     sampler = cls(
         network       = network,
         waveform_fn   = waveform_fn,
@@ -236,7 +236,7 @@ def main():
     )
     parser.add_argument("--event",   type=str, default="GW150914",
                         choices=sorted(EVENT_SETTINGS),
-                        help="Registered event name from gwjax.compat.KNOWN_EVENTS.")
+                        help="Registered event name from gwgpu_jax.compat.KNOWN_EVENTS.")
     parser.add_argument("--deglitched-l1", type=str, default=None,
                         help=("Optional path to a BayesWave-cleaned L1 frame "
                               "(GW170817). Replaces the GWOSC fetch for L1."))
@@ -256,7 +256,7 @@ def main():
                         help="Output file for the corner plot (default: corner_<event>.png).")
     # ── two-phase NS (bulk + accurate tail) ──────────────────────────────
     parser.add_argument("--two-phase", action="store_true",
-                        help="Use GWjaxTwoPhaseNestedSampler: a fast batch-delete "
+                        help="Use GWgpu_jaxTwoPhaseNestedSampler: a fast batch-delete "
                              "phase 1 followed by a Skilling-classical phase 2.")
     parser.add_argument("--phase1-num-delete", type=int, default=None,
                         help="Particles deleted per phase-1 iteration. "

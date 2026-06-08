@@ -1,5 +1,5 @@
 # ============================================================
-# GWjax — CUDA 12 requirements (Linux + NVIDIA GPU)
+# GWgpu_jax — CUDA 12 requirements (Linux + NVIDIA GPU)
 # Python 3.11 | JAX CUDA 12 backend
 # Tested on Linux x86_64 with CUDA 12.x drivers
 # ============================================================

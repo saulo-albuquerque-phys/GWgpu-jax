@@ -1,5 +1,5 @@
 # ============================================================
-# GWjax — CPU / macOS requirements
+# GWgpu_jax — CPU / macOS requirements
 # Python 3.11 | JAX CPU backend
 # Tested on macOS x86_64 (Intel) and Linux x86_64 (no GPU)
 # ============================================================

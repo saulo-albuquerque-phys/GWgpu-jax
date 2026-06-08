@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================
-# GWjax — CUDA 12 environment setup (Linux + NVIDIA GPU)
+# GWgpu_jax — CUDA 12 environment setup (Linux + NVIDIA GPU)
 # Creates a Python 3.11 venv and installs all dependencies.
 # Requires: CUDA 12.x drivers, Linux x86_64
 # Usage:  bash setup_env_cuda.sh [venv-name]   (default: venv_cuda)
@@ -68,7 +68,7 @@ pip install "blackjax @ git+https://github.com/handley-lab/blackjax.git@dedbf11d
 echo "Installing GW and inference packages..."
 pip install -r requirements-cuda.txt --quiet
 
-# ── Install GWjax itself (editable) ──────────────────────────
+# ── Install GWgpu_jax itself (editable) ──────────────────────────
 pip install -e . --quiet 2>/dev/null || true
 
 # ── Smoke test ────────────────────────────────────────────────

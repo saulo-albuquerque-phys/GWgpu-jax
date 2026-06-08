@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================
-# GWjax — full environment setup
+# GWgpu_jax — full environment setup
 # Creates a Python 3.11 venv with all three waveform generators:
 #   ripplegw        — IMRPhenomD, frequency-domain, BBH
 #   mlgw_bns_jax    — ML-BNS, frequency-domain, BNS   (local subdir)
@@ -70,7 +70,7 @@ pip install "numpy==1.26.4" --quiet
 echo "Installing waveform and inference packages..."
 pip install -r requirements-full.txt --quiet
 
-# ── 6. GWjax itself (editable) ───────────────────────────────
+# ── 6. GWgpu_jax itself (editable) ───────────────────────────────
 pip install -e . --quiet 2>/dev/null || true
 
 # ── Smoke test ────────────────────────────────────────────────

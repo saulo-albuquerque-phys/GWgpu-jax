@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================
-# GWjax — CPU environment setup (macOS / Linux, no GPU)
+# GWgpu_jax — CPU environment setup (macOS / Linux, no GPU)
 # Creates a Python 3.11 venv and installs all dependencies.
 # Usage:  bash setup_env_cpu.sh [venv-name]   (default: venv)
 # =============================================================
@@ -52,7 +52,7 @@ pip install "blackjax @ git+https://github.com/handley-lab/blackjax.git@dedbf11d
 echo "Installing GW and inference packages..."
 pip install -r requirements-cpu.txt --quiet
 
-# ── Install GWjax itself (editable) ──────────────────────────
+# ── Install GWgpu_jax itself (editable) ──────────────────────────
 pip install -e . --quiet 2>/dev/null || true
 
 # ── Smoke test ────────────────────────────────────────────────

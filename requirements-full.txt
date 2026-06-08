@@ -1,5 +1,5 @@
 # ============================================================
-# GWjax — full environment requirements
+# GWgpu_jax — full environment requirements
 # Python 3.11 | JAX CPU backend | all waveform generators
 #
 # Includes:

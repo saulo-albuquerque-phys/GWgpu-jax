@@ -1,0 +1,50 @@
+Parallel cubic-spline evaluation in the mlgw_bns JAX waveform
+============================================================
+
+Context
+-------
+The mlgw_bns surrogate reconstructs the frequency-domain amplitude and phase on a
+fixed, downsampled frequency grid (5046 amplitude nodes, 1151 phase nodes) and
+interpolates them onto the requested frequencies with a natural cubic spline.
+
+Bottleneck (original implementation)
+------------------------------------
+The spline's tridiagonal solve (Thomas algorithm) was implemented as two
+*sequential* passes -- a forward and a backward substitution -- each a
+`jax.lax.scan` of length equal to the number of nodes (O(N), with N up to 5046).
+Because every scan step is a separate device kernel, on a GPU this became ~10^4
+tiny, serial kernel launches per waveform evaluation and dominated the cost of a
+single likelihood call, making nested-sampling parameter estimation slow despite
+the GPU.
+
+Method
+------
+Each substitution is a first-order linear recurrence  s_i = a_i * s_{i-1} + b_i,
+i.e. a composition of affine maps  f_i(s) = a_i * s + b_i. Affine-map composition
+is associative -- (a2,b2) o (a1,b1) = (a2*a1, a2*b1 + b2) -- so the recurrence is
+solved with a parallel prefix scan (`jax.lax.associative_scan`) in O(log N)
+parallel depth instead of O(N) serial steps. The ~10^4 sequential kernel launches
+collapse to ~log2(N) ~ 13 parallel-depth steps.
+
+Validation
+----------
+The parallel solve is numerically identical to the serial one (waveform relative
+difference = 0 in float64), and the resulting JAX waveform reproduces the original
+mlgw_bns model to ~5e-11 (direct L2) and ~1e-16 after phase/time alignment --
+i.e. no change in accuracy. The parallel path is the default; the original serial
+path remains available for cross-checks (flag `parallel_spline`, default True).
+
+Result
+------
+- CPU: ~1.4x faster per waveform evaluation (2.33 ms -> 1.68 ms).
+- GPU (NVIDIA A100): the steady-state GW170817 relative-binning log-likelihood
+  evaluation drops from 112.4 ms to 2.1 ms -- a ~53x speedup -- confirming that
+  the serial spline solve had accounted for essentially the entire per-evaluation
+  cost (~110 of 112 ms). The marginalised log-likelihood is unchanged to
+  ~3e-8 (float reassociation only).
+- The optimisation is below the sampler, so it benefits every nested-sampling
+  kernel equally and is transparent to the likelihood / waveform API.
+
+Implementation: gwgpu_jax/mlgw_jax/mlgw_bns_jax/jax_import_n_predict.py
+(`_solve_linear_recurrence`, used by `_make_cubic_spline_jax` / `load_predict`,
+gated by `parallel_spline=True`).
