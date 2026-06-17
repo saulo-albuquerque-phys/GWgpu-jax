@@ -63,3 +63,5 @@ mlgw_bbh/FINALBlackJAX_NS_mlgw_bbh.ipynb
 mlgw_bbh/posterior_samples (5).txt
 mlgw_bbh/posterior_samples_mlgw_500.txt
 tests/mlgw_bns/corner_posterior_samples_mlgw_bns
+tests/mlgw_bns/posterior_samples_mlgw_bns (10).txt
+tests/mlgw_bns/posterior_samples_mlgw_bns (4).txt
