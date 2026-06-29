@@ -68,13 +68,20 @@ def setup_synthetic(network, grid, seed: int):
 
     waveform_fn = gwgpu_jax.build_ripplegw_waveform_fn("IMRPhenomD", f_ref=20.0)
     hp, hc = waveform_fn(GW150914_REFERENCE, grid.frequency_domain_array)
-    h_dict = network.project_waveform(
-        hp, hc,
-        GW150914_REFERENCE["ra"],
-        GW150914_REFERENCE["dec"],
-        GW150914_REFERENCE["psi"],
-        gmst=0.0,
-    )
+    # Project with the SAME tc+dt_ifo convention as the sampler's likelihood, so
+    # the injected merger sits at GW150914_REFERENCE["tc"]. network.project_waveform
+    # applies ONLY the geometric delay dt_ifo (not tc); it would place the signal
+    # at tc=0 — fine while tc=0, but it silently breaks for any nonzero tc.
+    freqs = grid.frequency_domain_array
+    gmst = float(network.gmst)
+    ra, dec, psi = (GW150914_REFERENCE["ra"], GW150914_REFERENCE["dec"],
+                    GW150914_REFERENCE["psi"])
+    h_dict = {}
+    for ifo in network.interferometers:
+        Fp, Fc = ifo.antenna_pattern(ra, dec, psi, gmst)
+        dt_ifo = ifo.time_delay_from_geocenter(ra, dec, gmst)
+        h_dict[ifo.name] = gwgpu_jax.waveform_projection_fd(
+            hp, hc, Fp, Fc, freqs, GW150914_REFERENCE["tc"] + dt_ifo)
 
     snrs = network.optimal_snr(h_dict)
     print("Injecting synthetic IMRPhenomD signal:")
