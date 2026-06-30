@@ -67,3 +67,6 @@ tests/mlgw_bns/posterior_samples_mlgw_bns (10).txt
 tests/mlgw_bns/posterior_samples_mlgw_bns (4).txt
 tests/mlgw_bns/posterior_samples_mlgw_bns (22).txt
 tests/mlgw_bns/posterior_samples_mlgw_bns_injection.txt
+mlgw_proposal_patches/0001-Fix-load_from_file-load-trained-weights-from-Keras-3.patch
+mlgw_proposal_patches/0002-Compat-TF-2.16-import-guard-and-jit-vmap-safe-Wigner.patch
+mlgw_proposal_patches/combined.diff
