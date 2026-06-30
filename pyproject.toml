@@ -2,7 +2,7 @@
 # GWgpu_jax — packaging metadata
 # Build backend: Hatchling (modern, glob-aware excludes).
 # Install (Colab GPU runtime):
-#   !pip install -q "gwgpu_jax[data] @ git+https://github.com/saulo-albuquerque-phys/GWgpu_jax.git"
+#   !pip install -q "gwgpu_jax[data] @ git+https://github.com/saulo-albuquerque-phys/GWgpu-jax.git"
 # Install (local, editable, CPU):
 #   pip install -e ".[data]"
 # ============================================================
@@ -95,9 +95,9 @@ dev = ["pytest>=7", "pytest-xdist>=3", "hatchling>=1.18"]
 
 
 [project.urls]
-Homepage   = "https://github.com/saulo-albuquerque-phys/GWgpu_jax"
-Repository = "https://github.com/saulo-albuquerque-phys/GWgpu_jax"
-Issues     = "https://github.com/saulo-albuquerque-phys/GWgpu_jax/issues"
+Homepage   = "https://github.com/saulo-albuquerque-phys/GWgpu-jax"
+Repository = "https://github.com/saulo-albuquerque-phys/GWgpu-jax"
+Issues     = "https://github.com/saulo-albuquerque-phys/GWgpu-jax/issues"
 
 
 # ── Build configuration ──────────────────────────────────────────────────────

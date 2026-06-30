@@ -33,16 +33,16 @@ The repo is currently **private**, so a [GitHub Personal Access Token](https://g
 export GH_TOKEN=$(< ~/.config/gwgpu_jax_pat.txt)   # or read -s -p "PAT: " GH_TOKEN
 
 # CPU only (laptops, macOS, plain Linux)
-pip install "gwgpu_jax @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWgpu_jax.git"
+pip install "gwgpu_jax @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWgpu-jax.git"
 
 # + real-data ingest (gwpy + GWOSC)
-pip install "gwgpu_jax[data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWgpu_jax.git"
+pip install "gwgpu_jax[data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWgpu-jax.git"
 
 # + NVIDIA GPU (CUDA 12)
-pip install "gwgpu_jax[gpu,data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWgpu_jax.git"
+pip install "gwgpu_jax[gpu,data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWgpu-jax.git"
 
 # + heavy ML waveform models (TensorFlow + tf2jax for SEOBNRv5HM / mlgw_bns_jax)
-pip install "gwgpu_jax[mlgw,data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWgpu_jax.git"
+pip install "gwgpu_jax[mlgw,data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWgpu-jax.git"
 ```
 
 > When the repo becomes public, drop `$GH_TOKEN@` from every URL.
@@ -67,7 +67,7 @@ if not GH_TOKEN:
     GH_TOKEN = getpass.getpass("GitHub PAT: ")
 os.environ["GH_TOKEN"] = GH_TOKEN
 
-!pip install -q "gwgpu_jax[data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWgpu_jax.git"
+!pip install -q "gwgpu_jax[data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWgpu-jax.git"
 
 del os.environ["GH_TOKEN"]; del GH_TOKEN
 
@@ -83,8 +83,8 @@ The full ready-to-run version is in [`examples/gwgpu_jax_colab_pe.ipynb`](exampl
 ### Editable local install (development)
 
 ```bash
-git clone https://github.com/saulo-albuquerque-phys/GWgpu_jax.git
-cd GWgpu_jax
+git clone https://github.com/saulo-albuquerque-phys/GWgpu-jax.git
+cd GWgpu-jax
 pip install -e ".[data,mlgw,samplers]"     # all extras except [gpu]
 ```
 
