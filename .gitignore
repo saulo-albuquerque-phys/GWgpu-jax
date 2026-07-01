@@ -83,3 +83,6 @@ tests/mlgw_bns/
 tests/old_gw170817_pe_mlgw_bns_jax_notebook_to_adapt/
 tests/resultsGW150914_ripple/
 tests/*.png
+tests/workinggwgpu_jax_GW170817_mlgw_bns_jax_rb_analyt_time_phase_marg_pe.ipynb
+mlgw_bns_waveforms.png
+waveform_polarizations.png
