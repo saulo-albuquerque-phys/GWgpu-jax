@@ -73,3 +73,13 @@ mlgw_proposal_patches/combined.diff
 
 # Archived example notebooks — keep on disk, don't track
 examples/oldbackup/
+
+# Local scratch work
+.tmpwork/
+
+# tests/: keep the pytest files (tests/test_*.py) tracked, drop heavy artifacts
+tests/mlgw_bbh/
+tests/mlgw_bns/
+tests/old_gw170817_pe_mlgw_bns_jax_notebook_to_adapt/
+tests/resultsGW150914_ripple/
+tests/*.png
