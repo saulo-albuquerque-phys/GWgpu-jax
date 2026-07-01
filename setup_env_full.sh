@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================
-# GWgpu_jax — full environment setup
+# GWgpu-jax — full environment setup
 # Creates a Python 3.11 venv with all three waveform generators:
 #   ripplegw        — IMRPhenomD, frequency-domain, BBH
 #   mlgw_bns_jax    — ML-BNS, frequency-domain, BNS   (local subdir)

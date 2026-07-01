@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================
-# GWgpu_jax — CPU environment setup (macOS / Linux, no GPU)
+# GWgpu-jax — CPU environment setup (macOS / Linux, no GPU)
 # Creates a Python 3.11 venv and installs all dependencies.
 # Usage:  bash setup_env_cpu.sh [venv-name]   (default: venv)
 # =============================================================

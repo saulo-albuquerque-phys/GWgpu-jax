@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================
-# GWgpu_jax — CUDA 12 environment setup (Linux + NVIDIA GPU)
+# GWgpu-jax — CUDA 12 environment setup (Linux + NVIDIA GPU)
 # Creates a Python 3.11 venv and installs all dependencies.
 # Requires: CUDA 12.x drivers, Linux x86_64
 # Usage:  bash setup_env_cuda.sh [venv-name]   (default: venv_cuda)
