@@ -88,11 +88,24 @@ cd GWgpu-jax
 pip install -e ".[data,mlgw,samplers]"     # all extras except [gpu]
 ```
 
-### Bash setup scripts (legacy)
+### Bash setup scripts
 
-The `setup_env_*.sh` scripts still work and build pinned environments for
-reproducibility — useful if you need to match a specific JAX / TF / blackjax
-version combination exactly.
+The `setup_env_*.sh` scripts build pinned, reproducible environments — useful
+when you need to match an exact JAX / TF / blackjax combination.
+
+### Full environment — all three waveforms + blackjax-ns (recommended for the ML models)
+
+```bash
+bash setup_env_full.sh           # creates ./venv_full by default
+source venv_full/bin/activate
+```
+
+This installs **ripplegw + mlgw_bns_jax + mlgw_bbh_jax + blackjax-ns together**
+(TensorFlow 2.15, jax 0.4.31, numpy 1.26.4; see `requirements-full.txt` for the
+full pinned lock) and runs the smoke test below to confirm all four coexist in
+one process. Verified from a clean build. The hard ceilings are `jax < 0.5`
+(blackjax-ns fork) and `tensorflow < 2.16` (2.16 switched to Keras 3, which
+breaks the mlgw_bbh loader).
 
 ### CPU-only environment (ripplegw + blackjax-ns only)
 
@@ -121,10 +134,11 @@ pip install "jax[cpu]==0.4.31" "jaxlib==0.4.31"
 # Pinned blackjax nested-sampling fork
 pip install "blackjax @ git+https://github.com/handley-lab/blackjax.git@dedbf11da33eb5ca286f6731e2c51f2b254b953f"
 
-# TensorFlow 2.13 + tf2jax (required for mlgw_bbh_jax)
-pip install "tensorflow==2.13.0" "tf2jax==0.3.6"
+# TensorFlow 2.15 + tf2jax (required for mlgw_bbh_jax / mlgw_bns_jax).
+# Must stay < 2.16 — TF 2.16 ships Keras 3 and breaks the mlgw_bbh loader.
+pip install "tensorflow==2.15.1" "tf2jax==0.3.6"
 
-# Pin numpy (TF may downgrade it; 1.26.4 is required by JAX 0.4.31)
+# Pin numpy (JAX 0.4.31 needs >=1.22; TF 2.15 accepts <2.0, so 1.26.4 fits both)
 pip install "numpy==1.26.4"
 
 # Remaining dependencies
@@ -137,10 +151,10 @@ pip install -e .
 ### Verifying the installation
 
 ```bash
-python test_all_waveforms.py 2>/dev/null
+python tests/test_all_waveforms.py
 ```
 
-Expected output:
+Expected output (TensorFlow/JAX log lines omitted):
 
 ```
 ============================================================
@@ -177,6 +191,6 @@ export XLA_PYTHON_CLIENT_MEM_FRACTION=0.8   # use 80 % of GPU memory
 ## mlgw_bbh_jax — notes on model loading
 
 The mlgw_bbh_jax models are saved in Keras 3.x `.keras` format.  
-The bundled `NN_model.py` has been patched to load them in a Keras 2.13.1 environment (which ships with TF 2.13.0) by parsing the layer specs directly rather than calling `from_config`.  
+The bundled `NN_model.py` has been patched to load them in a Keras 2.x environment (Keras 2.15, which ships with TF 2.15) by parsing the layer specs directly rather than calling `from_config`.  
 The active model is **model_4** (SEOBNRv5HM, modes 22 21 32 33 43 44 55, $q \in [1,10]$, $\chi_{1,2} \in [-0.9, 0.9]$).
 
