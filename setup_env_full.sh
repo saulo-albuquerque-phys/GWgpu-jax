@@ -55,14 +55,16 @@ pip install "jax[cpu]==0.4.31" "jaxlib==0.4.31" --quiet
 echo "Installing pinned blackjax-ns..."
 pip install "blackjax @ git+https://github.com/handley-lab/blackjax.git@dedbf11da33eb5ca286f6731e2c51f2b254b953f" --quiet
 
-# ── 3. TensorFlow 2.13 + tf2jax ──────────────────────────────
-# Required for mlgw_bbh_jax (SEOBNRv5HM) model weight loading.
-echo "Installing TensorFlow 2.13.0 + tf2jax..."
-pip install "tensorflow==2.13.0" "tf2jax==0.3.6" --quiet
+# ── 3. TensorFlow 2.15 + tf2jax ──────────────────────────────
+# Required for mlgw_bbh_jax (SEOBNRv5HM) and mlgw_bns_jax. TF 2.15 bundles
+# Keras 2.15, which the mlgw_bbh Keras-2 layer-spec loader needs — do NOT use
+# TF 2.16+ (it switched to Keras 3 and breaks the loader + tf2jax).
+echo "Installing TensorFlow 2.15.1 + tf2jax..."
+pip install "tensorflow==2.15.1" "tf2jax==0.3.6" --quiet
 
-# ── 4. Pin numpy after TF ────────────────────────────────────
-# TF 2.13 may downgrade numpy; JAX 0.4.31 needs >=1.26.4.
-# 1.26.4 works with both in practice despite TF's stated constraint.
+# ── 4. Pin numpy ─────────────────────────────────────────────
+# JAX 0.4.31 needs numpy>=1.22; TF 2.15 accepts numpy<2.0, so 1.26.4
+# satisfies both. Pinned explicitly for reproducibility.
 echo "Pinning numpy to 1.26.4..."
 pip install "numpy==1.26.4" --quiet
 
@@ -74,9 +76,12 @@ pip install -r requirements-full.txt --quiet
 pip install -e . --quiet 2>/dev/null || true
 
 # ── Smoke test ────────────────────────────────────────────────
+# Runs all three waveform generators + blackjax-ns in one process.
+# NOT silenced: `set -e` aborts here (before the "ready" banner) if any
+# component fails to import/run, so a broken env is caught loudly.
 echo ""
-echo "Running smoke test (suppress TF/JAX noise)..."
-python test_all_waveforms.py 2>/dev/null
+echo "Running smoke test (all three waveforms + sampler in one process)..."
+python tests/test_all_waveforms.py
 
 echo ""
 echo "============================================================"

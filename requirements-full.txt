@@ -1,56 +1,72 @@
 # ============================================================
-# GWgpu_jax — full environment requirements
-# Python 3.11 | JAX CPU backend | all waveform generators
+# GWgpu_jax — full environment lock  (Python 3.11 | JAX CPU)
 #
-# Includes:
-#   ripplegw        — IMRPhenomD, frequency-domain, BBH
-#   mlgw_bns_jax    — ML-BNS, frequency-domain, BNS  (local subdir)
-#   mlgw_bbh_jax    — SEOBNRv5HM (model_4), time-domain, BBH  (local subdir)
-#   blackjax-ns     — nested sampling (pinned commit)
+# Pinned to the versions VERIFIED to run all three waveform
+# generators + blackjax-ns simultaneously in one process
+# (tests/test_all_waveforms.py → "ALL FOUR COMPONENTS WORKING"):
+#   ripplegw       — IMRPhenomD, frequency-domain, BBH
+#   mlgw_bns_jax   — ML-BNS (TEOBResumSPA), frequency-domain, BNS  (local subdir, via tf2jax)
+#   mlgw_bbh_jax   — SEOBNRv5HM (model_4), time-domain, BBH        (local subdir, Keras-2 loader)
+#   blackjax-ns    — nested sampling (pinned commit)
 #
-# NOTE: numpy is pinned to 1.26.4.
-#   TF 2.13.0 officially requires numpy<=1.24.3, but 1.26.4 works
-#   in practice and is required by JAX 0.4.31.
-#   The setup script reinstalls numpy after TF to preserve this version.
+# This is a CURATED lock, not a raw `pip freeze`: the development venv it was
+# frozen from also contains unrelated packages. Every line below is pinned to
+# the exact working version; pip resolves the remaining stable transitives.
+#
+# HARD CONSTRAINTS (do not bump):
+#   * jax/jaxlib < 0.5   — the blackjax-ns fork needs the 0.4.x API.
+#   * tensorflow < 2.16  — 2.16 switched to Keras 3, which breaks the
+#                          mlgw_bbh Keras-2 layer-spec loader and tf2jax.
+#   * blackjax @ the pinned commit — later commits removed PartitionedState.
 # ============================================================
 
-# --- JAX (CPU) -----------------------------------------------
+# --- JAX (CPU) + shared dtypes -------------------------------
 jax[cpu]==0.4.31
 jaxlib==0.4.31
+ml_dtypes==0.5.4
 
 # --- BlackJAX nested sampling (pinned commit) ----------------
 # WARNING: do NOT replace with a later commit — the PartitionedState
 # API was removed in subsequent commits on the nested_sampling branch.
 blackjax @ git+https://github.com/handley-lab/blackjax.git@dedbf11da33eb5ca286f6731e2c51f2b254b953f
+equinox==0.13.8
 
-# --- TensorFlow (required for mlgw_bbh_jax / SEOBNRv5HM) ----
-tensorflow==2.13.0
+# --- ML waveform backends (mlgw_bbh_jax / mlgw_bns_jax) -------
+# keras is pinned to 2.15.0 (bundled with TF 2.15) so the mlgw_bbh
+# Keras-2 loader keeps working; TF 2.16 would pull Keras 3 and break it.
+tensorflow==2.15.1
+keras==2.15.0
 tf2jax==0.3.6
+scikit-learn==1.9.0        # mlgw_bns PCA / preprocessing
 
 # --- Gravitational-wave waveforms ----------------------------
 ripplegw==0.0.9
-
-# --- GW / Bayesian inference ---------------------------------
-bilby==2.5.0
-dynesty==2.1.5
-emcee==3.1.6
-
-# --- Nested sampling post-processing -------------------------
-anesthetic==2.9.3
 
 # --- JAX ecosystem -------------------------------------------
 chex==0.1.90
 optax==0.2.5
 jaxopt==0.8.5
 
+# --- Bayesian inference / samplers ---------------------------
+bilby==2.8.0
+bilby.cython==0.5.4        # fast GMST (used by the compat layer)
+dynesty==3.0.0
+emcee==3.1.6
+anesthetic==2.14.5
+
+# --- Real-data ingest (GWOSC) --------------------------------
+gwpy==4.0.1
+gwosc==0.8.2
+astropy==7.2.0
+
 # --- Scientific computing ------------------------------------
 numpy==1.26.4
 scipy==1.17.1
-matplotlib==3.10.1
-pandas==2.2.3
-h5py>=3.0
-joblib>=1.3
+matplotlib==3.10.9
+pandas==3.0.3
+h5py==3.16.0
+joblib==1.5.3
 
-# --- Utilities -----------------------------------------------
+# --- Plotting / progress -------------------------------------
 corner==2.2.3
-tqdm==4.67.1
+tqdm==4.67.3
