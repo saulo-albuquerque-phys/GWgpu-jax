@@ -20,16 +20,21 @@
 #   * blackjax @ the pinned commit — later commits removed PartitionedState.
 # ============================================================
 
-# --- JAX (CPU) + shared dtypes -------------------------------
+# --- JAX (CPU) -----------------------------------------------
+# ml_dtypes is intentionally NOT pinned: jax 0.4.31 and tensorflow 2.15
+# each constrain it (TF wants ~=0.3.1), so let pip resolve it against them.
 jax[cpu]==0.4.31
 jaxlib==0.4.31
-ml_dtypes==0.5.4
 
 # --- BlackJAX nested sampling (pinned commit) ----------------
 # WARNING: do NOT replace with a later commit — the PartitionedState
 # API was removed in subsequent commits on the nested_sampling branch.
+# (No equinox pin: the fork doesn't need it, and equinox>=0.13 requires
+#  jax>=0.4.38, which conflicts with the jax==0.4.31 pin.)
 blackjax @ git+https://github.com/handley-lab/blackjax.git@dedbf11da33eb5ca286f6731e2c51f2b254b953f
-equinox==0.13.8
+# blackjax needs fastprogress>=1.0.0; pin the lean 1.0.x line — fastprogress
+# 1.1.6 pulls a whole web/DB stack (python-fasthtml, fastcore, apsw, uvloop).
+fastprogress==1.0.5
 
 # --- ML waveform backends (mlgw_bbh_jax / mlgw_bns_jax) -------
 # keras is pinned to 2.15.0 (bundled with TF 2.15) so the mlgw_bbh
