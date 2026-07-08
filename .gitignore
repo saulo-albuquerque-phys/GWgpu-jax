@@ -86,3 +86,9 @@ tests/*.png
 tests/workinggwgpu_jax_GW170817_mlgw_bns_jax_rb_analyt_time_phase_marg_pe.ipynb
 mlgw_bns_waveforms.png
 waveform_polarizations.png
+
+# Unrelated experiments / scratch not part of the package
+examples/new_pe_method/
+examples/testing_new_pe_method.ipynb
+tests/compare_bilby/
+outdir/
