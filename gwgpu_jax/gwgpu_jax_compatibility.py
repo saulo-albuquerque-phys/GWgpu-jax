@@ -378,6 +378,8 @@ def timeseries_to_ifo(
     pre_merger:   Optional[float] = None,
     bandpass:     Optional[tuple] = None,
     detrend:      bool = True,
+    window:       Optional[str] = "tukey",
+    roll_off:     float = 0.2,
 ):
     """Resample, crop, and install a TimeSeries into an Interferometer.
 
@@ -398,6 +400,17 @@ def timeseries_to_ifo(
         Apply a Butterworth bandpass before cropping.
     detrend : bool
         Subtract the segment mean before installing.
+    window : {"tukey", None}
+        Taper applied to the cropped segment before the FFT into the
+        frequency domain, matching bilby's data conditioning. ``"tukey"``
+        (default) applies a Tukey window with roll-off ``roll_off`` — this
+        suppresses the spectral leakage that an un-tapered, non-periodic
+        real-data segment would otherwise smear across the analysis band.
+        ``None`` installs the raw (rectangular-windowed) segment.
+    roll_off : float
+        Tukey taper roll-off [s] at each edge. The scipy Tukey shape
+        parameter is ``alpha = 2 * roll_off / duration``, identical to
+        bilby's ``InterferometerStrainData`` convention (default 0.2 s).
 
     Returns
     -------
@@ -457,8 +470,32 @@ def timeseries_to_ifo(
                 f"after cropping; grid requires {N}. Fetch a longer segment."
             )
 
+    # Rebase the grid's absolute time axis onto the data's true first-sample
+    # epoch. gwpy returns samples on the GWOSC grid (integer_GPS + k/fs), which
+    # does not line up with the requested `seg_start`; without this, the loaded
+    # values would sit on a `time_domain_array` offset from the real sample
+    # times by up to half a sample. This only corrects absolute-time metadata —
+    # the FD data, PSD weights, likelihood and sampler are untouched (they never
+    # read initial_time; tc is a free parameter that absorbs a constant shift).
+    epoch = float(np.asarray(cropped.t0.value))
+    grid.rebase_initial_time(epoch)
+    ifo.data_epoch = epoch
+
     if detrend:
         arr = arr - arr.mean()
+
+    # Taper the segment edges before the FFT, matching bilby's conditioning.
+    # A raw rectangular window on a non-periodic real-data segment leaks the
+    # loud out-of-band content (seismic wall, violin modes) across the whole
+    # spectrum via the sinc sidelobes, biasing the in-band likelihood. bilby
+    # uses a Tukey window with alpha = 2*roll_off/duration; we match it exactly
+    # so d(f) is identical between the two pipelines.
+    if window is not None:
+        if window != "tukey":
+            raise ValueError(f"Unsupported window '{window}'; only 'tukey'.")
+        from scipy.signal.windows import tukey
+        alpha = 2.0 * roll_off / grid.duration
+        arr = arr * tukey(arr.size, alpha)
 
     ifo.load_data(jnp.asarray(arr), domain="td")
     return cropped
@@ -477,7 +514,10 @@ def attach_data_to_network(
     psd_offset:             float = 8.0,
     psd_nperseg:            Optional[int] = None,
     psd_full_data:          bool = False,
+    psd_average:            str = "median",
     detrend:                bool = True,
+    window:                 Optional[str] = "tukey",
+    roll_off:               float = 0.2,
 ) -> list:
     """Install per-detector strains into every matching IFO of a network.
 
@@ -485,8 +525,10 @@ def attach_data_to_network(
     ----------
     network : Network
     timeseries_dict : dict[str, gwpy.timeseries.TimeSeries]
-    event_gps, pre_merger, bandpass, detrend
-        Forwarded to :func:`timeseries_to_ifo`.
+    event_gps, pre_merger, bandpass, detrend, window, roll_off
+        Forwarded to :func:`timeseries_to_ifo` (``window``/``roll_off``
+        control the Tukey taper applied before the FFT; default matches
+        bilby).
     estimate_psd : bool
         If True, estimate each IFO's PSD via Welch on a quiet stretch
         preceding the on-source segment.
@@ -497,6 +539,10 @@ def attach_data_to_network(
     psd_offset : float
         Gap [s] between the off-source PSD segment and the on-source
         segment. A nonzero gap prevents the merger leaking into the PSD.
+    psd_average : {"median", "mean"}
+        Periodogram-averaging method for the Welch PSD estimate. Default
+        ``"median"`` (LIGO-standard, robust to glitches in the off-source
+        stretch). Forwarded to :func:`gwgpu_jax.gwgpu_jax_psd_utils.psd_from_data`.
 
     Returns
     -------
@@ -516,6 +562,8 @@ def attach_data_to_network(
             pre_merger=pre_merger,
             bandpass=bandpass,
             detrend=detrend,
+            window=window,
+            roll_off=roll_off,
         )
 
         if estimate_psd:
@@ -558,6 +606,7 @@ def attach_data_to_network(
                 np.asarray(off.value, dtype=np.float64),
                 sampling_rate=ifo.grid.sampling_rate,
                 nperseg=nperseg,
+                average=psd_average,
                 target_freqs=ifo.grid.frequency_domain_array,
             )
             ifo.psd = jnp.asarray(psd)
@@ -588,10 +637,13 @@ def attach_event_to_network(
     estimate_psd:           bool = True,
     psd_segment_duration:   float = 32.0,
     psd_offset:             float = 8.0,
-    bandpass:               Optional[tuple] = None,
+    bandpass:               Optional[tuple] | str = None,
     deglitched_files:       Optional[dict] = None,
     cache:                  bool = True,
     verbose:                bool = False,
+    window:                 Optional[str] = "tukey",
+    roll_off:               float = 0.2,
+    psd_average:            str = "median",
 ) -> list:
     """Fetch a known event from GWOSC (plus optional deglitched files)
     and populate every matching detector in ``network``.
@@ -613,9 +665,17 @@ def attach_event_to_network(
         Estimate each detector's PSD from the off-source segment.
     psd_segment_duration, psd_offset : float
         See :func:`attach_data_to_network`.
-    bandpass : (low, high), optional
-        Bandpass to apply to all strains before storage. Defaults to the
-        event's standard analysis band from :data:`KNOWN_EVENTS`.
+    bandpass : (low, high) tuple, ``None`` or ``"event"``
+        Time-domain Butterworth filter applied to each strain before the
+        FFT. Default ``None`` — **no** time-domain filter: the Tukey window
+        (``window``) suppresses leakage and the grid's ``[f_min, f_max]``
+        frequency mask selects the analysis band, matching the bilby/LIGO
+        convention. Pass ``"event"`` to use the registry band
+        (``KNOWN_EVENTS[event].bandpass``, legacy behaviour), or an explicit
+        ``(low, high)`` tuple. Note a time-domain bandpass whose upper edge
+        is below the grid's ``f_max`` zeroes real data inside the analysis
+        band and biases the likelihood — prefer ``None`` and set the band via
+        ``f_max``.
     deglitched_files : dict[str, str|Path], optional
         Per-detector override files (e.g. BayesWave-cleaned frames for
         GW170817 L1). Files are read via :func:`read_strain_file` and
@@ -646,7 +706,14 @@ def attach_event_to_network(
             f"Interferometer '{matching[0].name}' has no grid attached."
         )
 
-    if bandpass is None:
+    # bandpass=None -> no time-domain filter (default). "event" opts into the
+    # registry band for backward compatibility; a tuple applies that band.
+    if isinstance(bandpass, str):
+        if bandpass != "event":
+            raise ValueError(
+                f"bandpass string must be 'event' (use the registry band) or "
+                f"None/(low, high); got {bandpass!r}."
+            )
         bandpass = info.bandpass
 
     # GWOSC fetch (covers on-source + off-source + safety margin)
@@ -682,6 +749,9 @@ def attach_event_to_network(
         estimate_psd=estimate_psd,
         psd_segment_duration=psd_segment_duration,
         psd_offset=psd_offset,
+        psd_average=psd_average,
+        window=window,
+        roll_off=roll_off,
     )
 
     # Write GMST(trigger) onto the network so the sampler defaults its

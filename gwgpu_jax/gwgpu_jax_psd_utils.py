@@ -153,6 +153,7 @@ def psd_from_data(
     nperseg:       int | None = None,
     noverlap:      int | None = None,
     window:        str = "hann",
+    average:       str = "median",
     target_freqs:  jnp.ndarray | None = None,
 ) -> tuple[jnp.ndarray, jnp.ndarray]:
     """Estimate the one-sided PSD from a time-domain strain via Welch's method.
@@ -180,7 +181,16 @@ def psd_from_data(
     window : str, optional
         Window function name accepted by ``scipy.signal.welch``.  Default
         ``"hann"``.  Other useful choices: ``"blackman"``, ``"flattop"``,
-        ``"boxcar"`` (no windowing).
+        ``"boxcar"`` (no windowing).  This is the *per-segment* spectral
+        window and is independent of the Tukey window applied to the
+        analysis data in :func:`gwgpu_jax.compat.timeseries_to_ifo`.
+    average : {"median", "mean"}, optional
+        How the per-segment periodograms are combined.  Default ``"median"``
+        — the LIGO/bilby/pycbc standard for real detector data, because a
+        loud glitch or transient in one off-source segment biases a *mean*
+        estimate but leaves the *median* essentially unaffected.  scipy
+        applies the appropriate median-bias correction for Gaussian noise.
+        Use ``"mean"`` only for clean/synthetic stationary noise.
     target_freqs : array-like, optional
         If provided, the Welch estimate is **log-linearly interpolated** onto
         these frequencies (e.g. ``grid.frequency_domain_array``).  Frequencies
@@ -227,6 +237,7 @@ def psd_from_data(
         noverlap=noverlap,
         window=window,
         scaling="density",
+        average=average,
     )
 
     if target_freqs is not None:
@@ -245,12 +256,38 @@ def psd_from_data(
         )
         # DC bin (target == 0) and out-of-range bins → inf
         psd_out = np.where(target > 0.0, np.exp(log_psd_interp), np.inf)
-        # Do NOT force float32 — real-detector PSDs are ~1e-46 Hz^-1
-        # which underflows fp32's denormal floor. Let JAX honour the
-        # active precision (defaults float32; float64 with jax_enable_x64).
+        # Real-detector PSDs are ~1e-46 Hz^-1, which underflows fp32's denormal
+        # floor to 0 → the inner-product weight 4·df/S_n becomes inf → NaN
+        # likelihood. Guard against silently returning zeros when x64 is off.
+        _guard_psd_precision(psd_out)
         return jnp.asarray(target), jnp.asarray(psd_out)
 
+    _guard_psd_precision(pxx)
     return jnp.asarray(f), jnp.asarray(pxx)
+
+
+def _guard_psd_precision(psd: np.ndarray) -> None:
+    """Raise if JAX x64 is off and the PSD would underflow float32 to zero.
+
+    A real-detector PSD (~1e-46 Hz^-1) is below float32's smallest normal
+    (~1.18e-38), so ``jnp.asarray`` under the default float32 precision maps
+    it to 0.0, and the likelihood weight ``4·df / S_n`` then blows up to
+    ``inf``/``NaN`` — a silent, hard-to-trace failure. Fail loudly instead.
+    """
+    import jax
+    if jax.config.read("jax_enable_x64"):
+        return
+    finite_pos = psd[np.isfinite(psd) & (psd > 0.0)]
+    tiny32 = float(np.finfo(np.float32).tiny)
+    if finite_pos.size and float(finite_pos.min()) < tiny32:
+        raise RuntimeError(
+            "psd_from_data: JAX float64 is disabled but the estimated PSD has "
+            f"values ({float(finite_pos.min()):.2e} Hz^-1) below float32's normal "
+            f"floor ({tiny32:.2e}); they would underflow to 0 and make the "
+            "likelihood weights infinite. Enable float64 before estimating PSDs "
+            "or building likelihoods:\n"
+            "    import jax; jax.config.update('jax_enable_x64', True)"
+        )
 
 
 # ── Registry and dispatcher ───────────────────────────────────────────────────

@@ -200,3 +200,25 @@ class TimeFrequencyGrid:
             f"f_max={self.f_max:.1f}Hz, "
             f"n_band_bins={n_band})"
         )
+
+    def rebase_initial_time(self, initial_time: float) -> None:
+        """Reset the absolute epoch and recompute only ``time_domain_array``.
+
+        Real GWOSC samples live on a fixed grid (``integer_GPS + k/fs``), so
+        the *requested* segment start almost never lands exactly on a sample.
+        When data is cropped and loaded, its true first-sample GPS therefore
+        differs from ``initial_time`` by up to half a sample — leaving
+        ``time_domain_array`` offset from the physical sample times.
+        :func:`gwgpu_jax.compat.timeseries_to_ifo` calls this with the actual
+        ``cropped.t0`` so the axis reflects the data exactly.
+
+        This touches **only** the absolute time axis. ``frequency_domain_array``,
+        ``frequency_mask`` and the merger-relative ``time_domain_array_mlgw`` are
+        independent of ``initial_time``, and the frequency-domain likelihood /
+        sampler never read it (``tc`` is a free parameter that absorbs any
+        constant epoch shift) — so re-basing cannot change any likelihood value.
+        """
+        self.initial_time = float(initial_time)
+        self.time_domain_array = (
+            self.initial_time + jnp.arange(self.n_samples) * self.dt
+        )
