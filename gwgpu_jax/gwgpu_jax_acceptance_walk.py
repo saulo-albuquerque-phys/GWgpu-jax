@@ -102,7 +102,13 @@ _FETCH_HINT = (
 
 
 def _candidate_src_dirs() -> list[str]:
-    """Ordered candidate directories that may contain ``custom_kernels/``."""
+    """Ordered candidate directories that may contain ``custom_kernels/``.
+
+    Robust to a Colab runtime restart clearing ``os.environ``: the sparse clone
+    persists on disk at ``/content/blackjax_ns_gw`` across restarts, so we probe
+    that (and the current working directory's ``external/``) even without the
+    environment variable set.
+    """
     cands: list[str] = []
     env = os.environ.get("GWJAX_ACCEPTANCE_WALK_SRC")
     if env:
@@ -110,6 +116,10 @@ def _candidate_src_dirs() -> list[str]:
     # <repo_root>/external/blackjax_ns_gw/src  (repo_root = parent of this package)
     repo_root = Path(__file__).resolve().parent.parent
     cands.append(str(repo_root / "external" / "blackjax_ns_gw" / "src"))
+    # Colab convention (survives "Restart session"; env var does not).
+    cands.append("/content/blackjax_ns_gw/src")
+    # Current-working-directory checkout (local runs from the repo root).
+    cands.append(str(Path.cwd() / "external" / "blackjax_ns_gw" / "src"))
     return cands
 
 
