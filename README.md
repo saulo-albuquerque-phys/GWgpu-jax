@@ -14,8 +14,43 @@ mlgw_bns_jax and mlgw_bbh_jax live under `gwgpu_jax/mlgw_jax/` and are loaded vi
 
 ## Sampler
 
-[blackjax-ns](https://github.com/handley-lab/blackjax) — a nested-sampling fork of BlackJAX, pinned to commit `dedbf11da33eb5ca286f6731e2c51f2b254b953f`.  
-**Do not upgrade to a later commit** — the `PartitionedState` API was removed in subsequent commits.
+This branch uses the **acceptance-walk** nested-sampling kernel of
+[Prathaban et al. (2025)](https://arxiv.org/abs/2509.04336) — the
+`bilby`/`dynesty` constrained random-walk move that is the LIGO/Virgo community
+standard, ported to GPU inside the
+[blackjax-ns](https://github.com/handley-lab/blackjax) framework and shown there
+to recover posteriors and evidences **statistically identical** to the CPU
+`bilby` pipeline for aligned-spin binary black holes. We use it here because,
+unlike a generic sampler, it is a nested-sampling kernel already **validated on
+gravitational-wave data** — the results are defensible to a PE-specialist
+audience while your own gwgpu_jax likelihood, waveform, network, and priors are
+used unchanged.
+
+The driver is `gwgpu_jax.GWgpu_jaxAcceptanceWalkSampler` (see
+[`ACCEPTANCE_WALK.md`](ACCEPTANCE_WALK.md)). It runs on:
+
+- **blackjax-ns**, pinned to commit `dedbf11da33eb5ca286f6731e2c51f2b254b953f`
+  (**do not upgrade** — the `PartitionedState` API was removed in later commits;
+  the acceptance-walk kernel depends on it);
+- the **acceptance-walk kernel** itself, which lives in a separate,
+  separately-licensed repository
+  ([`mrosep/blackjax_ns_gw`](https://github.com/mrosep/blackjax_ns_gw)) and is
+  **not bundled** with gwgpu_jax. Fetch it once (see below); it pins the *same*
+  blackjax commit, so there is no version conflict.
+
+### Fetching the acceptance-walk kernel
+
+```bash
+bash scripts/fetch_acceptance_walk_kernel.sh
+```
+
+This sparse-clones only the `custom_kernels` package into `external/`
+(git-ignored — the kernel is never copied into this repo). gwgpu_jax discovers
+it automatically at `external/blackjax_ns_gw/src`, or set
+`GWJAX_ACCEPTANCE_WALK_SRC` to point at any checkout of its `src/` directory.
+
+**Cite** Prathaban et al. (2025, arXiv:2509.04336) and Cabezas et al. (2024,
+arXiv:2402.10797) if you use this sampler.
 
 ## Installation
 
@@ -106,6 +141,20 @@ full pinned lock) and runs the smoke test below to confirm all four coexist in
 one process. Verified from a clean build. The hard ceilings are `jax < 0.5`
 (blackjax-ns fork) and `tensorflow < 2.16` (2.16 switched to Keras 3, which
 breaks the mlgw_bbh loader).
+
+### Acceptance-walk environment (this branch's sampler) — recommended
+
+```bash
+bash setup_env_acceptance_walk.sh    # builds ./venv_full, then fetches the kernel
+source venv_full/bin/activate
+```
+
+This runs `setup_env_full.sh` (all three waveforms + pinned blackjax-ns) and then
+`scripts/fetch_acceptance_walk_kernel.sh` to pull the external acceptance-walk
+kernel into `external/` (git-ignored). After it finishes you can run the
+acceptance-walk notebooks/examples directly. On Google Colab the notebooks do
+the equivalent install + kernel fetch in their first cells — no local setup
+needed.
 
 ### CPU-only environment (ripplegw + blackjax-ns only)
 

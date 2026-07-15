@@ -92,3 +92,7 @@ examples/new_pe_method/
 examples/testing_new_pe_method.ipynb
 tests/compare_bilby/
 outdir/
+
+# External, separately-licensed acceptance-walk kernel (Prathaban et al. 2025).
+# Fetched on demand by scripts/fetch_acceptance_walk_kernel.sh; NOT vendored.
+external/

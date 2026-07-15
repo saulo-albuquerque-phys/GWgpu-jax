@@ -87,6 +87,13 @@ from gwgpu_jax.gwgpu_jax_two_phase_sampler import (
     GWgpu_jaxTwoPhaseNestedSampler,
     TwoPhaseNestedSamplingResult,
 )
+# Conservative, GW-validated alternative: acceptance-walk kernel
+# (Prathaban et al. 2025). Importing the class is cheap and side-effect free;
+# the external kernel is only fetched/imported when you call .run().
+from gwgpu_jax.gwgpu_jax_acceptance_walk import (
+    GWgpu_jaxAcceptanceWalkSampler,
+    AcceptanceWalkResult,
+)
 
 
 # ── Lazy heavy imports (TF, gwpy) via PEP 562 module __getattr__ ─────────────
@@ -156,6 +163,8 @@ __all__ = [
     "NestedSamplingResult",
     "GWgpu_jaxTwoPhaseNestedSampler",
     "TwoPhaseNestedSamplingResult",
+    "GWgpu_jaxAcceptanceWalkSampler",
+    "AcceptanceWalkResult",
     # lazy
     "GWgpu_jaxWaveformGenerator",
     "build_ripplegw_waveform_fn",

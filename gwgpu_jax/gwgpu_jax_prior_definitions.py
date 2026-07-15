@@ -147,6 +147,19 @@ class PriorSpec:
     def log_prob(self, x: jax.Array) -> jax.Array:  # pragma: no cover
         raise NotImplementedError
 
+    # Optional: the deterministic inverse-CDF (percent-point) transform mapping a
+    # uniform draw ``u ∈ [0, 1]`` to a physical value in ``[a, b]``. ``sample``
+    # is exactly ``icdf(U(0,1))``; exposing ``icdf`` on its own lets unit-cube
+    # samplers (e.g. the acceptance-walk kernel) reuse *this* prior definition as
+    # their ``prior_transform`` instead of re-deriving the transforms. Purely
+    # additive: ``sample`` is left untouched, so the existing NSS path is
+    # numerically unchanged.
+    def icdf(self, u: jax.Array) -> jax.Array:  # pragma: no cover
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement icdf(); it is only "
+            "required for unit-hypercube samplers."
+        )
+
     # shared helper: NaN-safe masking to -inf outside [a, b]
     def _mask_support(self, x: jax.Array, logp: jax.Array) -> jax.Array:
         inside = (x >= self.a) & (x <= self.b)
@@ -167,6 +180,9 @@ class Uniform(PriorSpec):
 
     def sample(self, rng_key: jax.Array) -> jax.Array:
         return jax.random.uniform(rng_key, minval=self.a, maxval=self.b)
+
+    def icdf(self, u: jax.Array) -> jax.Array:
+        return self.a + jnp.asarray(u) * (self.b - self.a)
 
     def log_prob(self, x: jax.Array) -> jax.Array:
         x = jnp.asarray(x)
@@ -207,6 +223,10 @@ class SinUniform(PriorSpec):
         u = jax.random.uniform(rng_key)
         cos_x = self._cos_a - u * (self._cos_a - self._cos_b)
         # Guard against tiny FP excursions outside [-1, 1].
+        return jnp.arccos(jnp.clip(cos_x, -1.0, 1.0))
+
+    def icdf(self, u: jax.Array) -> jax.Array:
+        cos_x = self._cos_a - jnp.asarray(u) * (self._cos_a - self._cos_b)
         return jnp.arccos(jnp.clip(cos_x, -1.0, 1.0))
 
     def log_prob(self, x: jax.Array) -> jax.Array:
@@ -251,6 +271,10 @@ class CosUniform(PriorSpec):
     def sample(self, rng_key: jax.Array) -> jax.Array:
         u = jax.random.uniform(rng_key)
         sin_x = self._sin_a + u * (self._sin_b - self._sin_a)
+        return jnp.arcsin(jnp.clip(sin_x, -1.0, 1.0))
+
+    def icdf(self, u: jax.Array) -> jax.Array:
+        sin_x = self._sin_a + jnp.asarray(u) * (self._sin_b - self._sin_a)
         return jnp.arcsin(jnp.clip(sin_x, -1.0, 1.0))
 
     def log_prob(self, x: jax.Array) -> jax.Array:
@@ -299,6 +323,10 @@ class PowerLaw(PriorSpec):
     def sample(self, rng_key: jax.Array) -> jax.Array:
         u = jax.random.uniform(rng_key)
         x_np1 = self._a_np1 + u * (self._b_np1 - self._a_np1)
+        return x_np1 ** (1.0 / self._np1)
+
+    def icdf(self, u: jax.Array) -> jax.Array:
+        x_np1 = self._a_np1 + jnp.asarray(u) * (self._b_np1 - self._a_np1)
         return x_np1 ** (1.0 / self._np1)
 
     def log_prob(self, x: jax.Array) -> jax.Array:
