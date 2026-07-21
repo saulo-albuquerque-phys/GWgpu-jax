@@ -12,6 +12,13 @@ GWgpu-jax provides a user-friendly interface between JAX waveform generators, ma
 
 mlgw_bns_jax and mlgw_bbh_jax live under `gwgpu_jax/mlgw_jax/` and are loaded via `sys.path` — no separate pip install is required.
 
+`mlgw_bbh_jax` is a **git submodule** pointing at the `gwgpu_jax_compatible`
+branch of [adrianomascioli/MLGW-JAX](https://github.com/adrianomascioli/MLGW-JAX)
+(a fork of [stefanoschmidt1995/MLGW](https://github.com/stefanoschmidt1995/MLGW)),
+so it is not stored in this repository. Clone with `--recurse-submodules`, or
+run `git submodule update --init` in an existing checkout; otherwise the
+directory is empty and the mlgw_bbh waveform will not import.
+
 ## Sampler
 
 This branch uses the **acceptance-walk** nested-sampling kernel of
@@ -61,50 +68,33 @@ arXiv:2402.10797) if you use this sampler.
 
 ### Install from GitHub (pip — recommended)
 
-The repo is currently **private**, so a [GitHub Personal Access Token](https://github.com/settings/tokens?type=beta) with `Contents: read-only` is required. Embed it once into the URL:
-
 ```bash
-# Set the token as a shell variable (don't echo it into your history).
-export GH_TOKEN=$(< ~/.config/gwgpu_jax_pat.txt)   # or read -s -p "PAT: " GH_TOKEN
-
 # CPU only (laptops, macOS, plain Linux)
-pip install "gwgpu_jax @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWgpu-jax.git"
+pip install "gwgpu_jax @ git+https://github.com/saulo-albuquerque-phys/GWgpu-jax.git"
 
 # + real-data ingest (gwpy + GWOSC)
-pip install "gwgpu_jax[data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWgpu-jax.git"
+pip install "gwgpu_jax[data] @ git+https://github.com/saulo-albuquerque-phys/GWgpu-jax.git"
 
 # + NVIDIA GPU (CUDA 12)
-pip install "gwgpu_jax[gpu,data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWgpu-jax.git"
+pip install "gwgpu_jax[gpu,data] @ git+https://github.com/saulo-albuquerque-phys/GWgpu-jax.git"
 
 # + heavy ML waveform models (TensorFlow + tf2jax for SEOBNRv5HM / mlgw_bns_jax)
-pip install "gwgpu_jax[mlgw,data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWgpu-jax.git"
+pip install "gwgpu_jax[mlgw,data] @ git+https://github.com/saulo-albuquerque-phys/GWgpu-jax.git"
 ```
 
-> When the repo becomes public, drop `$GH_TOKEN@` from every URL.
+> pip initialises git submodules automatically, so `mlgw_bbh_jax` is fetched
+> as part of any of the commands above — no extra step is needed. Note that
+> this makes the *install* download large (the MLGW-JAX repository carries
+> several hundred MB of paper figures), even though the installed package
+> itself excludes them.
 
 ### Google Colab quickstart (GPU runtime)
 
-Colab GPU runtimes ship with a CUDA-enabled JAX, so the `gpu` extra is **not** needed. Two ways to provide the token:
-
-- **Colab Secrets** (recommended) — key icon 🔑 in the sidebar → add a secret called `GH_TOKEN` → toggle *Notebook access*.
-- One-off `getpass.getpass()` prompt — the cell below falls back to it if no secret is set.
+Colab GPU runtimes ship with a CUDA-enabled JAX, so the `gpu` extra is **not**
+needed. The repository is public — no token or authentication step is required.
 
 ```python
-import os, getpass
-
-GH_TOKEN = None
-try:
-    from google.colab import userdata
-    GH_TOKEN = userdata.get("GH_TOKEN")
-except Exception:
-    pass
-if not GH_TOKEN:
-    GH_TOKEN = getpass.getpass("GitHub PAT: ")
-os.environ["GH_TOKEN"] = GH_TOKEN
-
-!pip install -q "gwgpu_jax[data] @ git+https://$GH_TOKEN@github.com/saulo-albuquerque-phys/GWgpu-jax.git"
-
-del os.environ["GH_TOKEN"]; del GH_TOKEN
+!pip install -q "gwgpu_jax[data] @ git+https://github.com/saulo-albuquerque-phys/GWgpu-jax.git"
 
 import jax, gwgpu_jax
 print(jax.devices())                       # → [CudaDevice(id=0), …]
@@ -118,9 +108,15 @@ The full ready-to-run version is in [`examples/gwgpu_jax_colab_pe.ipynb`](exampl
 ### Editable local install (development)
 
 ```bash
-git clone https://github.com/saulo-albuquerque-phys/GWgpu-jax.git
+git clone --recurse-submodules https://github.com/saulo-albuquerque-phys/GWgpu-jax.git
 cd GWgpu-jax
 pip install -e ".[data,mlgw,samplers]"     # all extras except [gpu]
+```
+
+If you already cloned without `--recurse-submodules`:
+
+```bash
+git submodule update --init
 ```
 
 ### Bash setup scripts
@@ -236,6 +232,28 @@ ALL FOUR COMPONENTS WORKING IN THE SAME ENVIRONMENT
 ```bash
 export XLA_PYTHON_CLIENT_MEM_FRACTION=0.8   # use 80 % of GPU memory
 ```
+
+## License
+
+GWgpu-jax is released under the **GNU General Public License v3.0 or later**
+(see [`LICENSE`](LICENSE)). GPL-3 applies because this repository bundles and
+modifies [mlgw_bns](https://github.com/jacopok/mlgw_bns) (GPL-3, Jacopo
+Tissino) under `gwgpu_jax/mlgw_jax/mlgw_bns_jax/`, which makes the combined
+work a derivative.
+
+Bundled and referenced components keep their own licenses:
+
+| Component | Location | License |
+|---|---|---|
+| mlgw_bns | `gwgpu_jax/mlgw_jax/mlgw_bns_jax/` (bundled, modified) | GPL-3 |
+| MLGW-JAX (mlgw_bbh) | git submodule — not redistributed here | no license stated upstream |
+| acceptance-walk kernel | fetched into `external/` — not bundled | see [`mrosep/blackjax_ns_gw`](https://github.com/mrosep/blackjax_ns_gw) |
+
+Note that [MLGW-JAX](https://github.com/adrianomascioli/MLGW-JAX) and its parent
+[MLGW](https://github.com/stefanoschmidt1995/MLGW) do not currently state a
+license, which means default copyright applies to them. It is referenced as a
+submodule rather than copied here, so using GWgpu-jax does not redistribute it —
+but if you intend to reuse that code yourself, contact its authors first.
 
 ## mlgw_bbh_jax — notes on model loading
 
