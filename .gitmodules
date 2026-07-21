@@ -1,0 +1,4 @@
+[submodule "gwgpu_jax/mlgw_jax/mlgw_bbh_jax"]
+	path = gwgpu_jax/mlgw_jax/mlgw_bbh_jax
+	url = https://github.com/adrianomascioli/MLGW-JAX.git
+	branch = gwgpu_jax_compatible
