@@ -56,6 +56,21 @@ _REPO_DIR = Path(__file__).resolve().parent / "mlgw_bbh_jax"
 if str(_REPO_DIR) not in sys.path:
     sys.path.insert(0, str(_REPO_DIR))
 
+# ── Keep TensorFlow off the GPU ──────────────────────────────────────────────
+# TF is used only to *load* the Keras weight files; the forward pass runs in
+# JAX. Left alone, TF claims GPU memory alongside JAX (which preallocates 75 %
+# by default) — a common OOM on single-GPU machines such as Colab. TF needs no
+# device here, so hiding the GPU from it costs nothing and leaves the card
+# entirely to JAX. Must run before the import below, which pulls TF in:
+# set_visible_devices raises once TF has initialised its devices.
+# Set GWJAX_TF_ALLOW_GPU=1 to opt out (e.g. if you use TF on GPU yourself).
+if os.environ.get("GWJAX_TF_ALLOW_GPU", "") != "1":
+    try:
+        import tensorflow as _tf
+        _tf.config.set_visible_devices([], "GPU")
+    except Exception:      # TF missing, or devices already initialised
+        pass
+
 from mlgw.GW_generator import GW_generator  # noqa: E402  (path injection above)
 
 
