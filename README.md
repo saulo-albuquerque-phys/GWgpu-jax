@@ -7,8 +7,10 @@ GWgpu-jax provides a user-friendly interface between JAX waveform generators, ma
 | Generator | Model | Domain | Source type | Reference |
 |---|---|---|---|---|
 | [ripplegw](https://github.com/tedwards2412/ripple) | IMRPhenomD | frequency | BBH | [Phys.Rev.D 106 (2022)](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.106.044029) |
-| mlgw_bns_jax | MLGW-BNS_TEOBResumSPA | frequency | BNS | [Phys. Rev. D 107 (2023)](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.107.084037) |
-| mlgw_bbh_jax | mlgw_SEOBNRv5HM (model_4) | time | BBH | [Phys.Rev.D 108 (2023)](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.108.124035) |
+| mlgw_bns_jax | MLGW-BNS_TEOBResumSPA | frequency | BNS | [Phys. Rev. D 107 (2023)](
+[https://doi.org/10.1103/PhysRevD.107.084037](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.107.084037)) |
+| mlgw_bbh_jax | mlgw_SEOBNRv5HM (model_4) | time | BBH | [Phys.Rev.D 103 (2021)](
+([https://journals.aps.org/prd/abstract/10.1103/PhysRevD.103.043020)](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.103.043020)) |
 
 mlgw_bns_jax and mlgw_bbh_jax live under `gwgpu_jax/mlgw_jax/` and are loaded via `sys.path` — no separate pip install is required.
 
