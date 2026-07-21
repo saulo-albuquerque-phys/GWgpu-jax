@@ -17,7 +17,10 @@ name            = "gwgpu_jax"
 version         = "0.1.0"
 description     = "JAX-based gravitational-wave parameter-estimation toolkit (waveforms, interferometer networks, nested sampling)."
 readme          = "README.md"
-requires-python = ">=3.10"
+# 3.11 only. The mlgw extra needs tensorflow < 2.16 (2.16 ships Keras 3, which
+# breaks the mlgw_bbh loader), and TF publishes no <2.16 wheel for 3.12 — so
+# [mlgw] cannot resolve there at all. 3.11 is also what Colab runs.
+requires-python = ">=3.11,<3.12"
 # GPL-3: gwgpu_jax bundles and modifies mlgw_bns (GPL-3, Jacopo Tissino) under
 # gwgpu_jax/mlgw_jax/mlgw_bns_jax/, which makes this a derivative work.
 license         = { text = "GPL-3.0-or-later" }
@@ -35,9 +38,7 @@ classifiers     = [
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Astronomy",
     "Topic :: Scientific/Engineering :: Physics",
 ]

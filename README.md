@@ -63,7 +63,8 @@ arXiv:2402.10797) if you use this sampler.
 
 ### Requirements
 
-- Python 3.10 / 3.11 / 3.12
+- **Python 3.11** (only) — the `mlgw` extra requires TensorFlow < 2.16, and no
+  such wheel exists for 3.12; 3.11 is also the version Google Colab provides
 - Git
 
 ### Install from GitHub (pip — recommended)
