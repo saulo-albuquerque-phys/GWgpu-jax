@@ -102,3 +102,5 @@ external/
 examples/results_pp_plot/
 examples/tests_pp_test_investigation/
 tests/pp_tests/
+examples/frozen_benchmark/bilby_frozen_4s*/
+examples/frozen_benchmark/gwjax_frozen_4s*/
