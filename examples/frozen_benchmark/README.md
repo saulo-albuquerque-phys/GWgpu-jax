@@ -55,6 +55,19 @@ result.json}`.
 ~3 h wall on 16 cores (≈ 48 CPU-h); checkpointed every 30 min, so it resumes
 if interrupted. Outputs `bilby_frozen_4s/frozen_4s_result.json`.
 
+On an IGWN/LDG cluster (recommended if you have LIGO.ORG credentials — bilby
+and lalsuite are preinstalled in the cvmfs `igwn` conda env, no pip needed):
+
+    ssh albert.einstein@ldas-grid.ligo.caltech.edu
+    git clone -b pp_test_investigation https://github.com/saulo-albuquerque-phys/GWgpu-jax.git
+    cd GWgpu-jax/examples/frozen_benchmark
+    # edit accounting_group / accounting_group_user in run_bilby_frozen.sub
+    condor_submit run_bilby_frozen.sub      # then: condor_q / tail -f condor_frozen_4s.out
+
+or interactively on an `ldas-pcdev*` node inside tmux:
+`bash run_bilby_frozen.sh 16`. Eviction/interruption is safe either way —
+resubmit and it resumes from the checkpoint.
+
 **Overlay**:
 
     python make_comparison_plot.py \
