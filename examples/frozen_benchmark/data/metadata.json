@@ -1,0 +1,39 @@
+{
+  "source": "mrosep/blackjax_ns_gw@main src/4s_* files (bit-identical to 4s_H1L1V1.pkl used by bilby_4s.py); PSD = ASD^2 linearly interpolated onto frequency_array (verified bit-identical to the pickle PSDs)",
+  "event": "synthetic 4s BBH injection of Prathaban et al. 2025 (arXiv:2509.04336) Fig. 1 / Table 2",
+  "injection": {
+    "chirp_mass": 35.0,
+    "mass_ratio": 0.9,
+    "chi_1": 0.4,
+    "chi_2": -0.3,
+    "luminosity_distance": 1000.0,
+    "theta_jn": 0.4,
+    "psi": 2.659,
+    "phase": 1.3,
+    "geocent_time": 1126259642.413,
+    "ra": 1.375,
+    "dec": -1.2108
+  },
+  "duration": 4.0,
+  "sampling_frequency": 2048.0,
+  "minimum_frequency": 20.0,
+  "maximum_frequency": 1024.0,
+  "start_time": 1126259640.413,
+  "trigger_time": 1126259642.413,
+  "reference_frequency": 50.0,
+  "detectors": [
+    "H1",
+    "L1",
+    "V1"
+  ],
+  "network_optimal_snr_of_injected_template": 40.36,
+  "sha256_16": {
+    "frequency_array": "280a86ac9211e670",
+    "H1_strain_fd": "5fd731e51f6ee531",
+    "H1_psd": "ca101fe79c42a09b",
+    "L1_strain_fd": "62af05c25aad3901",
+    "L1_psd": "ca101fe79c42a09b",
+    "V1_strain_fd": "8439b06785024793",
+    "V1_psd": "aed559f6b5dd4edb"
+  }
+}
