@@ -96,3 +96,9 @@ outdir/
 # External, separately-licensed acceptance-walk kernel (Prathaban et al. 2025).
 # Fetched on demand by scripts/fetch_acceptance_walk_kernel.sh; NOT vendored.
 external/
+
+# PP-test result dumps downloaded from Colab/Drive (posteriors, corner pngs,
+# zips) — analysis outputs, not source; keep on disk, don't track.
+examples/results_pp_plot/
+examples/tests_pp_test_investigation/
+tests/pp_tests/
