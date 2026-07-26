@@ -1,0 +1,24 @@
+# HTCondor submit file for the frozen 4s bilby benchmark on IGWN/LDG clusters.
+#
+#   condor_submit run_bilby_frozen.sub
+#
+# Fill in your accounting tag (https://accounting.ligo.org) and LIGO.ORG
+# username below. The run checkpoints every 30 min, so eviction is safe:
+# resubmitting resumes from the last checkpoint.
+universe              = vanilla
+executable            = run_bilby_frozen.sh
+arguments             = 16
+initialdir            = .
+log                   = condor_frozen_4s.log
+output                = condor_frozen_4s.out
+error                 = condor_frozen_4s.err
+request_cpus          = 16
+request_memory        = 8GB
+request_disk          = 4GB
+should_transfer_files = NO
+
+# REQUIRED on LDG — replace with your tag and albert.einstein username:
+accounting_group      = ligo.dev.o4.cbc.pe.bilby
+accounting_group_user = albert.einstein
+
+queue
