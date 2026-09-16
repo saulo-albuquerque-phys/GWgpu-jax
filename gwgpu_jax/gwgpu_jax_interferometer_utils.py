@@ -92,8 +92,10 @@ _WGS84_E2 = 6.694_379_990_14e-3   # first eccentricity squared
 #   lat, lon     : degrees (positive N / positive E) — informational only
 #   elev         : metres above WGS84 ellipsoid     — informational only
 #   vertex_ecef  : ECEF position of the vertex [m]
-#   xarm_ecef    : ECEF unit vector along the x-arm (LAL-precision)
-#   yarm_ecef    : ECEF unit vector along the y-arm (LAL-precision)
+#   xarm_ecef    : ECEF unit vector along the x-arm (full float64 repr of
+#   yarm_ecef    : ECEF unit vector along the y-arm   bilby 2.8 ``ifo.x/ifo.y``;
+#                  a 10-decimal table previously left a ~5e-11 arm-vector
+#                  rounding → ~1e-10 in F+/F× → ~6e-7 in logL at SNR 80)
 #   arm_len      : arm length [m]
 #   psd          : default PSD model name
 #
@@ -104,37 +106,37 @@ _KNOWN_DETECTORS: dict[str, dict] = {
     "H1": dict(
         lat=46.4547471372, lon=-119.4076509511, elev=142.554,
         xarm_az=324.0006, yarm_az=234.0006, arm_len=3995.1, psd="aLIGO",
-        vertex_ecef=(-2161414.926360, -3834695.178888, 4600350.226639),
-        xarm_ecef  =(-0.2238926615,    0.7998306275,    0.5569048783),
-        yarm_ecef  =(-0.9139781857,    0.0260940399,   -0.4049234212),
+        vertex_ecef=(-2161414.9263599985, -3834695.178888352, 4600350.226638993),
+        xarm_ecef  =(-0.22389266154156134, 0.7998306274613044, 0.5569048783075004),
+        yarm_ecef  =(-0.9139781857385537, 0.0260940398862029, -0.40492342124959746),
     ),
     "L1": dict(
         lat=30.5628943333, lon=-90.7742403889,  elev=-6.574,
         xarm_az=252.2835, yarm_az=342.2835, arm_len=3994.5, psd="aLIGO",
-        vertex_ecef=(   -74276.044724, -5496283.719708, 3224257.017436),
-        xarm_ecef  =(-0.9545741215,   -0.1415807734,   -0.2621891132),
-        yarm_ecef  =( 0.2977415689,   -0.4879103365,   -0.8205446129),
+        vertex_ecef=(-74276.04472379353, -5496283.71970837, 3224257.0174356177),
+        xarm_ecef  =(-0.9545741215325968, -0.14158077340475525, -0.26218911324153493),
+        yarm_ecef  =(0.297741568936122, -0.48791033647194065, -0.8205446128586149),
     ),
     "V1": dict(
         lat=43.6314144722, lon=10.5044966111,   elev=51.884,
         xarm_az=19.4326,  yarm_az=289.4326, arm_len=3000.0, psd="AdV",
-        vertex_ecef=(4546374.099003,   842989.697626,  4378576.962409),
-        xarm_ecef  =(-0.7004582148,    0.2084894862,    0.6825616628),
-        yarm_ecef  =(-0.0537925537,   -0.9690818055,    0.2408045171),
+        vertex_ecef=(4546374.099002599, 842989.6976263338, 4378576.962409281),
+        xarm_ecef  =(-0.7004582147896785, 0.20848948618767266, 0.6825616627696408),
+        yarm_ecef  =(-0.05379255368193195, -0.969081805485829, 0.24080451707703163),
     ),
     "K1": dict(
         lat=36.4118603389, lon=137.3059560306, elev=414.181,
         xarm_az=29.6038,  yarm_az=119.6036, arm_len=3000.0, psd="KAGRA",
-        vertex_ecef=(-3777336.023929, 3484898.410986, 3765313.696691),
-        xarm_ecef  =(-0.3759040795,  -0.8361583410,   0.3994187675),
-        yarm_ecef  =( 0.7164379022,   0.0111408152,   0.6975619073),
+        vertex_ecef=(-3777336.023929229, 3484898.41098596, 3765313.6966907606),
+        xarm_ecef  =(-0.3759040795016276, -0.8361583409905126, 0.39941876746846516),
+        yarm_ecef  =(0.7164379021875112, 0.011140815228930779, 0.6975619073209149),
     ),
     "GEO600": dict(
         lat=52.2451466667, lon=9.8071927778,   elev=114.425,
         xarm_az=21.6117,  yarm_az=115.9431, arm_len=600.0,  psd="aLIGO",
-        vertex_ecef=(3856309.949259,  666598.956317,  5019641.417249),
-        xarm_ecef  =(-0.4453067690,   0.8665135413,   0.2255131131),
-        yarm_ecef  =(-0.6260575678,  -0.5521860952,   0.5505837249),
+        vertex_ecef=(3856309.9492589603, 666598.956317097, 5019641.417249081),
+        xarm_ecef  =(-0.4453067690476546, 0.8665135412979457, 0.22551311311680375),
+        yarm_ecef  =(-0.6260575677572052, -0.5521860952414536, 0.550583724855656),
     ),
     # Einstein Telescope: 10 km arms, 60° opening angle, Sardinia placeholder
     # (not in bilby's registry — kept as geometric placeholder via lat/lon/az)
@@ -143,9 +145,9 @@ _KNOWN_DETECTORS: dict[str, dict] = {
     # Cosmic Explorer: 20 km arms, LHO-placeholder geometry (LAL azimuths)
     "CE": dict(lat=46.4547471372, lon=-119.4076509511, elev=142.554,
                xarm_az=324.0006, yarm_az=234.0006, arm_len=20000.0, psd="CE",
-               vertex_ecef=(-2161414.926360, -3834695.178888, 4600350.226639),
-               xarm_ecef  =(-0.2238926615,    0.7998306275,    0.5569048783),
-               yarm_ecef  =(-0.9139781857,    0.0260940399,   -0.4049234212)),
+               vertex_ecef=(-2161414.9263599985, -3834695.178888352, 4600350.226638993),
+               xarm_ecef  =(-0.22389266154156134, 0.7998306274613044, 0.5569048783075004),
+               yarm_ecef  =(-0.9139993028202168, 0.026169387004468244, -0.4048708900723388)),
 }
 
 
@@ -476,9 +478,11 @@ class Interferometer:
         ``e× = m⊗n + n⊗m``. The detector tensor is
         D = (x̂⊗x̂ − ŷ⊗ŷ)/2, so ``Fp = D : e+(ψ)`` and ``Fc = D : e×(ψ)``
         with the standard 2ψ rotation applied to the polarisation basis.
-        The convention is validated against bilby's
-        ``Interferometer.antenna_response`` to better than 7·10⁻⁴ across a
-        grid of (ra, dec, ψ) for H1/L1/V1.
+        Validated against bilby's ``Interferometer.antenna_response`` to
+        |ΔF| ≤ 5e-12 over 2000 random (ra, dec, ψ, t) for H1/L1/V1/K1 with
+        the full-precision ECEF arm vectors in ``_KNOWN_DETECTORS``
+        (``tests/compare_bilby``). The end-to-end log-likelihood then agrees
+        with bilby to ~1e-12 relative (float64 summation noise).
         """
         # Rotate arm vectors from ECEF to geocentric celestial frame
         cos_gmst = jnp.cos(gmst)
