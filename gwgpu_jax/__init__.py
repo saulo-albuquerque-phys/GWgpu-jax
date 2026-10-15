@@ -94,6 +94,12 @@ from gwgpu_jax.gwgpu_jax_acceptance_walk import (
     GWgpu_jaxAcceptanceWalkSampler,
     AcceptanceWalkResult,
 )
+# SHARPy: tempered SMC with SoftAbs-Hessian NUTS moves (pure-JAX port, runs on
+# the pinned blackjax; no external fork needed).
+from gwgpu_jax.gwgpu_jax_sharpy import (
+    GWgpu_jaxSHARPySampler,
+    SHARPyResult,
+)
 
 
 # ── Lazy heavy imports (TF, gwpy) via PEP 562 module __getattr__ ─────────────
@@ -165,6 +171,8 @@ __all__ = [
     "TwoPhaseNestedSamplingResult",
     "GWgpu_jaxAcceptanceWalkSampler",
     "AcceptanceWalkResult",
+    "GWgpu_jaxSHARPySampler",
+    "SHARPyResult",
     # lazy
     "GWgpu_jaxWaveformGenerator",
     "build_ripplegw_waveform_fn",
