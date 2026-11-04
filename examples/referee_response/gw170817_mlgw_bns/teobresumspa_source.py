@@ -67,9 +67,12 @@ def teobresumspa_bns_relative_binning(frequency_array, mass_1, mass_2, luminosit
     """Source model for bilby's RelativeBinningGravitationalWaveTransient.
 
     ``fiducial = 1``: full grid (fiducial waveform); otherwise only at ``frequency_bin_edges``.
+    bilby versions differ in how they flag the fiducial call (2.8.2 sets waveform_arguments
+    ["fiducial"] = 1; the igwn env on LDG did not), so a call without bin edges is also treated as
+    the fiducial (full-grid) call -- bin edges only exist once the binning is set up.
     """
     fiducial = kwargs.pop("fiducial", 0)
-    if fiducial == 1:
+    if fiducial == 1 or kwargs.get("frequency_bin_edges") is None:
         return teobresumspa_bns(frequency_array, mass_1, mass_2, luminosity_distance, chi_1, chi_2,
                                 lambda_1, lambda_2, theta_jn, phase, **kwargs)
     edges = np.asarray(kwargs["frequency_bin_edges"])
