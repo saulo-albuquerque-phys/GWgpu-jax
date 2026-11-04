@@ -5,16 +5,19 @@
 #   arguments = 32 --spin-prior high      (|a| <= 0.5)
 #   arguments = 32 --psd-mode welch       (the published PSD; needs data_welch/)
 #   arguments = 1 --benchmark 200         (timing only, comment 6; request_cpus = 1)
-# Cost: ~70 ms per RB likelihood call (TEOB ODE dominates, single core); a run needs O(1e7) calls.
+# Cost: ~70 ms per RB likelihood call (TEOB ODE dominates, single core). From the nlive-40 smoke run
+# (H = 25 nats, 1194 its): ~3e4 iterations x ~500 calls = ~1.5e7 calls = ~300 CPU-h.
+# Wall time: 32 cores ~10 h, 64 cores ~5-6 h (default), 128 cores ~3-4 h at lower efficiency
+# (dynesty's parallel proposals stop scaling at ~5-10% of nlive). If 64-core slots queue too long, use 32.
 universe              = vanilla
 executable            = run_bilby_gw170817.sh
-arguments             = 32
+arguments             = 64
 initialdir            = .
 log                   = condor_gw170817.log
 output                = condor_gw170817.out
 error                 = condor_gw170817.err
-request_cpus          = 32
-request_memory        = 16GB
+request_cpus          = 64
+request_memory        = 32GB
 request_disk          = 4GB
 should_transfer_files = NO
 accounting_group      = ligo.dev.o4.cbc.pe.bilby
