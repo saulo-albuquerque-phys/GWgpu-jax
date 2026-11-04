@@ -1,0 +1,24 @@
+# HTCondor submit file for the mlgw_bbh-vs-bilby BBH case on IGWN/LDG clusters.
+#
+#   condor_submit run_bilby_bbh.sub
+#
+# Fill in your accounting tag (https://accounting.ligo.org) and LIGO.ORG
+# username below. The run checkpoints every 30 min, so eviction is safe:
+# resubmitting resumes from the last checkpoint.
+universe              = vanilla
+executable            = run_bilby_bbh.sh
+arguments             = 16
+initialdir            = .
+log                   = condor_bbh_case.log
+output                = condor_bbh_case.out
+error                 = condor_bbh_case.err
+request_cpus          = 16
+request_memory        = 8GB
+request_disk          = 4GB
+should_transfer_files = NO
+
+# REQUIRED on LDG — replace with your tag and albert.einstein username:
+accounting_group      = ligo.dev.o4.cbc.pe.bilby
+accounting_group_user = saulo.soares-de-albuquerque-filho
+
+queue

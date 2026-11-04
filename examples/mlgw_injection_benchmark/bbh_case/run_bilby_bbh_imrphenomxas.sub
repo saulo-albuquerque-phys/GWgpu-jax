@@ -1,0 +1,24 @@
+# HTCondor submit file for the faster IMRPhenomXAS BBH cross-check on
+# IGWN/LDG clusters — runs alongside (not instead of) run_bilby_bbh.sub's
+# SEOBNRv5_ROM job; separate output/log/checkpoint files, no collision.
+#
+#   condor_submit run_bilby_bbh_imrphenomxas.sub
+#
+# Fill in your accounting tag and LIGO.ORG username below (same as the other
+# .sub files in this directory).
+universe              = vanilla
+executable            = run_bilby_bbh_imrphenomxas.sh
+arguments             = 16
+initialdir            = .
+log                   = condor_bbh_case_imrphenomxas.log
+output                = condor_bbh_case_imrphenomxas.out
+error                 = condor_bbh_case_imrphenomxas.err
+request_cpus          = 16
+request_memory        = 8GB
+request_disk          = 4GB
+should_transfer_files = NO
+
+accounting_group      = ligo.dev.o4.cbc.pe.bilby
+accounting_group_user = saulo.soares-de-albuquerque-filho
+
+queue
