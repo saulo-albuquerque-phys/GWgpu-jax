@@ -82,7 +82,7 @@ naccept 60, maxmcmc 5000, dlogz 0.1).
        rsync -a data_gwtc1 <ldg>:~/GWgpu-jax/examples/referee_response/gw170817_mlgw_bns/
        ssh <ldg>; cd ~/GWgpu-jax/examples/referee_response/gw170817_mlgw_bns
        bash setup_ldg_env.sh                 # once
-       condor_submit run_bilby_gw170817.sub  # 64 cores (~5-6 h); resubmit to resume
+       condor_submit run_bilby_gw170817.sub  # 32 cores (~10 h); resubmit to resume
 
 4. **Compare:** `bash compare_gwjax_bilby.sh <Drive RUN_DIR> <bilby_..._result.json>`.
 
