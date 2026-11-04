@@ -344,6 +344,10 @@ json.dump(table, open(f"{RUN_DIR}/jsd_vs_gwtc2p1.json", "w"), indent=2)
 print("\\nsaved", f"{RUN_DIR}/jsd_vs_gwtc2p1.json")
 ''')
 
+# stale upstream comment: the waveform_fn samples q = m2/m1 in (0, 1], not m1/m2 >= 1
+i_summ = find(lambda s: s.startswith("# No heavier-first relabelling needed"))
+replace_once(i_summ, "we sampled q = m1/m2 >= 1 directly", "we sampled q = m2/m1 <= 1 directly")
+
 # ── assemble: keep install/setup/network/waveform/summary cells, rebuild the tail ──
 head = cells[:i_time + 1]
 summary = [c for c in cells[i_time + 1:i_corner_md]]

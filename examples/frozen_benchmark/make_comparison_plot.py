@@ -53,10 +53,10 @@ MAP = {
     "tc":          ("geocent_time", lambda x: x - start_time),
 }
 LABELS = {
-    "Mc": r"$M_c\,[M_\odot]$", "q": r"$q$", "chi_1": r"$\chi_1$",
-    "chi_2": r"$\chi_2$", "distance": r"$d_L$ [Mpc]",
-    "inclination": r"$\theta_{JN}$", "ra": r"$\alpha$", "dec": r"$\delta$",
-    "psi": r"$\psi$", "phi_c": r"$\phi_c$", "tc": r"$t_c$ [s]",
+    "Mc": r"$M_c$", "q": r"$q$", "chi_1": r"$s_{1z}$",
+    "chi_2": r"$s_{2z}$", "distance": r"$d_L$",
+    "inclination": r"$\iota$", "ra": r"$\alpha$", "dec": r"$\delta$",
+    "psi": r"$\psi$", "phi_c": r"$\phi_c$", "tc": r"$t_c$",
 }
 inj = gres["injection"]
 TRUTH = dict(Mc=inj["chirp_mass"], q=inj["mass_ratio"], chi_1=inj["chi_1"],
@@ -65,7 +65,9 @@ TRUTH = dict(Mc=inj["chirp_mass"], q=inj["mass_ratio"], chi_1=inj["chi_1"],
              psi=inj["psi"], phi_c=inj["phase"],
              tc=inj["geocent_time"] - start_time)
 
-names = list(MAP)
+# Paper Fig. 1 axis order: Mc, q, dL, delta(dec), alpha(ra), iota, s1z, s2z, tc, psi, phi_c
+names = ["Mc", "q", "distance", "dec", "ra", "inclination",
+         "chi_1", "chi_2", "tc", "psi", "phi_c"]
 g_data = np.column_stack([np.asarray(gpost[n]) for n in names])
 b_data = np.column_stack([
     MAP[n][1](bcol(MAP[n][0])) if MAP[n][1] else bcol(MAP[n][0]) for n in names])
