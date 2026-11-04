@@ -371,6 +371,37 @@ def read_strain_files(
 
 # ── TimeSeries → Interferometer ───────────────────────────────────────────────
 
+def _flat_band_filter(timeseries, low: float, high: float, order: int = 8):
+    """Zero-phase Butterworth band limiting that is flat (gain > 0.998) on [low, high].
+
+    Replaces gwpy's ``TimeSeries.highpass/bandpass`` defaults, which design a
+    Chebyshev-I IIR with ``gpass = 2 dB`` passband ripple and apply it with
+    filtfilt: the amplitude response then ripples between 0.63 and 1.0 over
+    roughly [low, 20*low] (|H| ~ 0.66 at 30, 60, 100 Hz for low = 23 Hz).
+    Because neither the PSD nor the templates see that filter, it silently
+    rescaled the signal in the data (the published GW170817 run whitened to
+    0.5-0.6 between 40 and 200 Hz).
+
+    Here the -3 dB corners sit at ``low / 1.5`` and ``1.5 * high`` (the
+    low-pass is skipped when that exceeds 0.9 x Nyquist), so with
+    ``sosfiltfilt`` (gain |H|^2) the in-band gain is >= 1 / (1 + 1.5**(-2*order))
+    = 0.9985 for order 8.
+    """
+    from scipy.signal import butter, sosfiltfilt
+
+    fs = float(timeseries.sample_rate.value)
+    nyquist = 0.5 * fs
+    f_hp = low / 1.5
+    f_lp = 1.5 * high
+    if f_lp < 0.9 * nyquist:
+        sos = butter(order, [f_hp, f_lp], btype="bandpass", fs=fs, output="sos")
+    else:
+        sos = butter(order, f_hp, btype="highpass", fs=fs, output="sos")
+    out = timeseries.copy()
+    out.value[:] = sosfiltfilt(sos, np.asarray(timeseries.value, dtype=np.float64))
+    return out
+
+
 def timeseries_to_ifo(
     timeseries,
     ifo,
@@ -397,7 +428,11 @@ def timeseries_to_ifo(
         Seconds of pre-merger data. Defaults to ``0.875 * duration``.
         Ignored when ``event_gps`` is None.
     bandpass : (low, high), optional
-        Apply a Butterworth bandpass before cropping.
+        Apply a zero-phase Butterworth band limit before cropping, flat to
+        >0.998 on [low, high] (corners at low/1.5 and 1.5*high; see
+        :func:`_flat_band_filter`). ``None`` (default, as bilby) applies no
+        filter. Before Nov 2026 this used gwpy's Chebyshev-I defaults, whose
+        2 dB passband ripple attenuated the in-band data by up to 37%.
     detrend : bool
         Subtract the segment mean before installing.
     window : {"tukey", None}
@@ -432,17 +467,12 @@ def timeseries_to_ifo(
     if abs(float(timeseries.sample_rate.value) - fs) > 1e-6:
         timeseries = timeseries.resample(fs)
 
-    # Bandpass (helps avoid aliasing on the segment edges after cropping).
-    # If the upper edge reaches Nyquist, scipy's iirdesign rejects the
-    # normalised frequency (must be < 1), and a band-pass is meaningless
-    # there anyway — fall back to a high-pass at the lower edge.
+    # Optional band-limiting filter (helps against leakage of the large
+    # sub-band seismic power on the segment edges). It must be FLAT inside
+    # [low, high]: the PSD and the templates are not filtered, so any in-band
+    # gain != 1 rescales the signal in the data. See _flat_band_filter.
     if bandpass is not None:
-        low, high = float(bandpass[0]), float(bandpass[1])
-        nyquist = 0.5 * fs
-        if high >= nyquist:
-            timeseries = timeseries.highpass(low)
-        else:
-            timeseries = timeseries.bandpass(low, high)
+        timeseries = _flat_band_filter(timeseries, float(bandpass[0]), float(bandpass[1]))
 
     # Determine crop window
     if event_gps is not None:

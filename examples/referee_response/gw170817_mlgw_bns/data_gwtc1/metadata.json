@@ -1,0 +1,84 @@
+{
+  "event": "GW170817",
+  "source": "BayesWave-deglitched BWCLEANED 4 kHz strain via gwgpu_jax.compat.attach_data_to_network",
+  "detectors": [
+    "H1",
+    "L1",
+    "V1"
+  ],
+  "duration": 128.0,
+  "sampling_frequency": 4096.0,
+  "minimum_frequency": 23.0,
+  "maximum_frequency": 1500.0,
+  "reference_frequency": 23.0,
+  "trigger_time": 1187008882.4277,
+  "start_time": 1187008760.8276367,
+  "tc_in_segment": 121.60006332397461,
+  "gmst": 2.7289084590326524,
+  "tukey_roll_off": 0.2,
+  "bandpass": null,
+  "psd_mode": "gwtc1",
+  "psd_method": "GWTC-1 GW170817 PSDs (LVK release, DCC LIGO-P1900011, BayesWave on-source)",
+  "psd_file": "GWTC1_GW170817_PSDs.dat",
+  "psd_file_sha256": "93460c6113ac594e43cd01ce91c695108aaf0031bc1e05648cc090214b23578a",
+  "psd_url": "https://dcc.ligo.org/public/0158/P1900011/001/GWTC1_GW170817_PSDs.dat",
+  "psd_band_hz": [
+    23.0,
+    2047.992188
+  ],
+  "mlgw_tc_peak_offset_s": -0.0002049999999999999,
+  "sha256_16": {
+    "frequency_array": "a901fa03893de8fa",
+    "H1_strain_fd": "aeabd48df20c8fb1",
+    "H1_psd": "627c8e9d7878aaf7",
+    "L1_strain_fd": "a4ac612b6e7aa018",
+    "L1_psd": "604481c91f0d9624",
+    "V1_strain_fd": "1af6770d43981b32",
+    "V1_psd": "7e48f7d3551b3cd0"
+  },
+  "whitened_power_median": {
+    "bands_hz": [
+      [
+        23,
+        40
+      ],
+      [
+        40,
+        80
+      ],
+      [
+        80,
+        200
+      ],
+      [
+        200,
+        500
+      ],
+      [
+        500,
+        1500.0
+      ]
+    ],
+    "H1": [
+      0.9560998081512364,
+      0.9577520836546836,
+      0.9877225813896321,
+      0.9964701792869527,
+      0.9935790766426484
+    ],
+    "L1": [
+      0.9714074789485956,
+      0.9971707277835319,
+      0.9821799152723582,
+      1.0015080318953526,
+      0.9888465598378012
+    ],
+    "V1": [
+      0.9841632181383185,
+      1.0833798385174127,
+      0.9756840257309134,
+      1.0135448515505665,
+      1.0019888598911404
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+# HTCondor submit file -- GW170817 bilby + TEOBResumSPA reference run (LDG).
+#   bash setup_ldg_env.sh          (once)
+#   condor_submit run_bilby_gw170817.sub
+# Checkpoints every 30 min; resubmitting resumes. Variants via `arguments`, e.g.
+#   arguments = 32 --spin-prior high      (|a| <= 0.5)
+#   arguments = 32 --psd-mode welch       (the published PSD; needs data_welch/)
+#   arguments = 1 --benchmark 200         (timing only, comment 6; request_cpus = 1)
+# Cost: ~70 ms per RB likelihood call (TEOB ODE dominates, single core); a run needs O(1e7) calls.
+universe              = vanilla
+executable            = run_bilby_gw170817.sh
+arguments             = 32
+initialdir            = .
+log                   = condor_gw170817.log
+output                = condor_gw170817.out
+error                 = condor_gw170817.err
+request_cpus          = 32
+request_memory        = 16GB
+request_disk          = 4GB
+should_transfer_files = NO
+accounting_group      = ligo.dev.o4.cbc.pe.bilby
+accounting_group_user = saulo.soares-de-albuquerque-filho
+queue
