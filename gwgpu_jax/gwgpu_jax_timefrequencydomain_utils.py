@@ -44,9 +44,10 @@ Four main arrays are produced from three scalars (``duration``, ``sampling_rate`
       discontinuous template whose rFFT is badly distorted. This is invisible
       to inject↔recover (the distorted template matches itself) but wrecks
       real-data PE — the coalescence time and masses rail at the prior edges.
-      A small positive ``mlgw_final_time`` (default 0.01 s, after the
-      upstream ``GW_FD_generator``) makes the grid straddle zero so the peak
-      and ringdown are captured. Pair it with an asymmetric Tukey taper on
+      A positive ``mlgw_final_time`` makes the grid straddle zero so the
+      peak and ringdown are captured. It must cover the whole ringdown: the
+      default is 0.1 s (the upstream ``GW_FD_generator``'s 0.01 s cuts the
+      ringdown off at ~15% of peak amplitude for a GW150914-like binary). Pair it with an asymmetric Tukey taper on
       the time-domain (h₊, h×) before the rFFT to suppress the inspiral
       turn-on / ringdown-edge leakage.
 
@@ -58,7 +59,7 @@ Usage
 >>> grid.time_domain_array        # shape (16384,)
 >>> grid.frequency_domain_array   # shape (8193,)  — full FFT grid
 >>> grid.frequency_mask           # shape (8193,)  — True for 20–1024 Hz
->>> grid.time_domain_array_mlgw   # shape (16384,), in [0.01−8, 0.01−dt)
+>>> grid.time_domain_array_mlgw   # shape (16384,), in [0.1−8, 0.1−dt)
 """
 
 from __future__ import annotations
@@ -88,11 +89,15 @@ class TimeFrequencyGrid:
     mlgw_final_time : float, optional
         Seconds of post-merger time to include at the end of
         ``time_domain_array_mlgw`` [s].  Must satisfy ``0 <= mlgw_final_time
-        < duration``.  Defaults to 0.01 s (matching the upstream
-        ``GW_FD_generator``), enough to capture the peak and ringdown of a
-        stellar-mass BBH; raise it for very high total masses (longer
-        ringdown).  Has no effect on any array other than
-        ``time_domain_array_mlgw``.
+        < duration``.  Defaults to 0.1 s, which covers mlgw_bbh's native
+        post-peak span (0.00052 s/M_sun x M_tot) for M_tot <= ~190 M_sun;
+        mlgw returns exact zeros beyond it, so a longer tail is harmless.
+        The upstream ``GW_FD_generator`` default of 0.01 s truncates the
+        ringdown (|h| is still ~15% of peak at +10 ms for M_tot = 65 M_sun):
+        mismatch ~3e-3 vs SEOBNRv5HM, vs ~1e-4 at 0.1 s.  NB: the template's
+        merger sits at ``tc - mlgw_final_time`` (mod duration), so centre a
+        tc prior on ``t_merger + mlgw_final_time``.  Has no effect on any
+        array other than ``time_domain_array_mlgw``.
 
     Attributes
     ----------
@@ -129,7 +134,7 @@ class TimeFrequencyGrid:
         initial_time:  float = 0.0,
         f_min:         float = 0.0,
         f_max:         float | None = None,
-        mlgw_final_time: float = 0.01,
+        mlgw_final_time: float = 0.1,
     ) -> None:
         if duration <= 0:
             raise ValueError(f"duration must be positive, got {duration}")
