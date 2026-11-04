@@ -8,6 +8,8 @@ conda activate igwn
 cd "$(dirname "$0")"
 [ -d pylib ] || { echo "no ./pylib: run setup_ldg_env.sh first"; exit 1; }
 export PYTHONPATH="$PWD/pylib:$PWD:${PYTHONPATH}"
+export LD_LIBRARY_PATH="$PWD/pylib/lib:${LD_LIBRARY_PATH}"     # bundled libopenblas etc. (setup_ldg_env.sh)
+python -c "import EOBRun_module" || { echo "teobresums import failed on $(hostname):"; ldd pylib/EOBRun_module*.so; exit 1; }
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
 NPOOL="${1:-32}"; shift || true
 exec python run_bilby_gw170817.py --npool "$NPOOL" "$@"
