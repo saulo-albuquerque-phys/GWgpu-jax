@@ -1,0 +1,30 @@
+{
+  "event": "GW150914",
+  "source": "GWOSC via gwgpu_jax.compat.attach_event_to_network",
+  "detectors": [
+    "H1",
+    "L1"
+  ],
+  "duration": 4.0,
+  "sampling_frequency": 4096.0,
+  "minimum_frequency": 20.0,
+  "maximum_frequency": 1024.0,
+  "reference_frequency": 20.0,
+  "trigger_time": 1126259462.4,
+  "start_time": 1126259458.8999023,
+  "trigger_in_segment": 3.5000977516174316,
+  "gmst": 2.4565330536265364,
+  "psd_mode": "paper",
+  "psd_segment_duration": 32.0,
+  "psd_offset": 8.0,
+  "psd_nperseg": null,
+  "psd_method": "scipy.signal.welch, hann, 50% overlap, median",
+  "tukey_roll_off": 0.2,
+  "sha256_16": {
+    "frequency_array": "c925c5367b4e6ba3",
+    "H1_strain_fd": "c2706d566fbc5e8d",
+    "H1_psd": "4d9f82942e8422a0",
+    "L1_strain_fd": "f43cc0de5b832eac",
+    "L1_psd": "e411b3aee6bb9f9f"
+  }
+}

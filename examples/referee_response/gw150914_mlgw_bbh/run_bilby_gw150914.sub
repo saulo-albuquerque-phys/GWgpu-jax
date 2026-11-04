@@ -1,0 +1,19 @@
+# HTCondor submit file — GW150914 bilby + SEOBNRv5_ROM reference run (LDG).
+#   condor_submit run_bilby_gw150914.sub
+# Checkpoints every 30 min; resubmitting resumes. Edit `arguments` for variants, e.g.
+#   arguments = 16 --psd-mode paper        (published PSD)
+#   arguments = 16 --marginalize           (faster)
+universe              = vanilla
+executable            = run_bilby_gw150914.sh
+arguments             = 16
+initialdir            = .
+log                   = condor_gw150914.log
+output                = condor_gw150914.out
+error                 = condor_gw150914.err
+request_cpus          = 16
+request_memory        = 8GB
+request_disk          = 4GB
+should_transfer_files = NO
+accounting_group      = ligo.dev.o4.cbc.pe.bilby
+accounting_group_user = saulo.soares-de-albuquerque-filho
+queue
