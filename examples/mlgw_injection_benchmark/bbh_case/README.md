@@ -100,7 +100,7 @@ local test can still run for a long time — each `SEOBNRv5_ROM` likelihood
 call is fast, but many are needed to actually converge):
 
     ssh albert.einstein@ldas-grid.ligo.caltech.edu
-    git clone -b pp_test_investigation https://github.com/saulo-albuquerque-phys/GWgpu-jax.git
+    git clone -b acceptance_walk_sampler https://github.com/saulo-albuquerque-phys/GWgpu-jax.git
     cd GWgpu-jax/examples/mlgw_injection_benchmark/bbh_case
     # edit accounting_group / accounting_group_user in run_bilby_bbh.sub
     condor_submit run_bilby_bbh.sub
