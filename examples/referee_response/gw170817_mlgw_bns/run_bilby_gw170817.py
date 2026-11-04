@@ -82,6 +82,7 @@ def main():
     print(f"frozen GW170817 inputs verified ({data.name}, PSD mode {meta['psd_mode']})")
 
     bilby.core.utils.setup_logger(outdir=outdir, label=args.label)
+    print(f"bilby {bilby.__version__}")
     bilby.core.utils.random.seed(args.seed)
     T, fs = meta["duration"], meta["sampling_frequency"]
     f_min, f_max = meta["minimum_frequency"], meta["maximum_frequency"]
@@ -148,7 +149,7 @@ def main():
 
     wfg_rb = bilby.gw.WaveformGenerator(
         duration=T, sampling_frequency=fs, frequency_domain_source_model=teobresumspa_bns_relative_binning,
-        parameter_conversion=conv, waveform_arguments=dict(wargs, fiducial=0))
+        parameter_conversion=conv, waveform_arguments=dict(wargs))
     like = bilby.gw.likelihood.RelativeBinningGravitationalWaveTransient(
         ifos, wfg_rb, fiducial_parameters=fid, priors=pri, epsilon=args.epsilon,
         phase_marginalization=True, update_fiducial_parameters=False)
