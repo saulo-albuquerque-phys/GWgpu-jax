@@ -644,6 +644,7 @@ def attach_event_to_network(
     window:                 Optional[str] = "tukey",
     roll_off:               float = 0.2,
     psd_average:            str = "median",
+    psd_nperseg:            Optional[int] = None,
 ) -> list:
     """Fetch a known event from GWOSC (plus optional deglitched files)
     and populate every matching detector in ``network``.
@@ -683,6 +684,12 @@ def attach_event_to_network(
         is then estimated from the deglitched stretch as well.
     cache, verbose
         Forwarded to :func:`fetch_event_strain`.
+    psd_nperseg : int, optional
+        Welch segment length [samples]. ``None`` keeps the historical default
+        of ``psd_from_data`` (``N // 8`` of the off-source stretch, i.e. 4 s for
+        the 32 s default). The LVK convention is the analysis duration,
+        ``grid.n_samples``: with a 128 s stretch that gives 63 half-overlapping
+        median-averaged periodograms on exactly the analysis frequency grid.
 
     Returns
     -------
@@ -750,6 +757,7 @@ def attach_event_to_network(
         psd_segment_duration=psd_segment_duration,
         psd_offset=psd_offset,
         psd_average=psd_average,
+        psd_nperseg=psd_nperseg,
         window=window,
         roll_off=roll_off,
     )

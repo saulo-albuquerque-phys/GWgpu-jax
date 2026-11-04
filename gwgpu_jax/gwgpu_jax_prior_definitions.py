@@ -91,6 +91,7 @@ from typing import Callable, Dict, Mapping, Tuple, Union
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 
 
 __all__ = [
@@ -100,6 +101,9 @@ __all__ = [
     "CosUniform",
     "PowerLaw",
     "Volumetric",
+    "UniformInComponentsChirpMass",
+    "UniformInComponentsMassRatio",
+    "AlignedSpin",
     "build_prior",
     "sample_prior",
     "resolve_priors",
@@ -348,6 +352,111 @@ class Volumetric(PowerLaw):
         super().__init__(a, b, n=2.0)
 
 
+# ── LVK-standard mass and aligned-spin priors ─────────────────────────────────
+
+class UniformInComponentsChirpMass(PowerLaw):
+    r"""Chirp-mass marginal of a prior uniform in the component masses, ``p(M_c) ∝ M_c``.
+
+    Together with :class:`UniformInComponentsMassRatio` this reproduces the
+    LVK / bilby default of sampling ``(M_c, q)`` with a prior that is uniform
+    in ``(m_1, m_2)`` inside the ``(M_c, q)`` box: the Jacobian
+    ``|∂(m_1, m_2)/∂(M_c, q)| ∝ M_c (1+q)^{2/5} q^{-6/5}`` factorises.
+    Same density as ``bilby.gw.prior.UniformInComponentsChirpMass``.
+    """
+
+    def __init__(self, a: float, b: float) -> None:
+        super().__init__(a, b, n=1.0)
+
+
+class UniformInComponentsMassRatio(PriorSpec):
+    r"""Mass-ratio marginal of a prior uniform in component masses, ``q = m_2/m_1 ≤ 1``.
+
+    .. math::
+        p(q) \propto (1+q)^{2/5}\, q^{-6/5}, \qquad a \le q \le b \le 1,
+
+    the same density as ``bilby.gw.prior.UniformInComponentsMassRatio``. The
+    inverse CDF is tabulated once (float64, 20001 nodes uniform in ``log q``,
+    cumulative Simpson-accurate trapezoid) and evaluated with ``jnp.interp``;
+    ``log_prob`` is analytic.
+    """
+
+    def __init__(self, a: float, b: float = 1.0, n_grid: int = 20001) -> None:
+        super().__init__(a, b)
+        if a <= 0.0 or b > 1.0 + 1e-12:
+            raise ValueError(f"UniformInComponentsMassRatio needs 0 < a < b <= 1, got a={a}, b={b}.")
+        x = np.exp(np.linspace(np.log(self.a), np.log(self.b), n_grid))
+        pdf = (1.0 + x) ** 0.4 * x ** (-1.2)
+        cdf = np.concatenate([[0.0], np.cumsum(0.5 * (pdf[1:] + pdf[:-1]) * np.diff(x))])
+        self._logZ = float(np.log(cdf[-1]))
+        self._cdf = jnp.asarray(cdf / cdf[-1])
+        self._x = jnp.asarray(x)
+
+    def icdf(self, u: jax.Array) -> jax.Array:
+        return jnp.interp(jnp.asarray(u), self._cdf, self._x)
+
+    def sample(self, rng_key: jax.Array) -> jax.Array:
+        return self.icdf(jax.random.uniform(rng_key))
+
+    def log_prob(self, x: jax.Array) -> jax.Array:
+        x = jnp.asarray(x)
+        xs = jnp.clip(x, self.a, self.b)
+        logp = 0.4 * jnp.log1p(xs) - 1.2 * jnp.log(xs) - self._logZ
+        return self._mask_support(x, logp)
+
+
+class AlignedSpin(PriorSpec):
+    r"""z-component of an isotropic spin with magnitude uniform in ``[0, a_max]``.
+
+    .. math::
+        p(\chi) = \frac{1}{2 a_{\max}} \ln\frac{a_{\max}}{|\chi|}, \qquad |\chi| \le a_{\max},
+
+    the standard LVK aligned-spin prior (``bilby.gw.prior.AlignedSpin`` with a
+    uniform magnitude prior), optionally truncated to ``[a, b]``. ``a_max``
+    defaults to ``max(|a|, |b|)``, so ``AlignedSpin(-0.9, 0.9)`` is exactly
+    "isotropic spins with |a| ≤ 0.9" (e.g. a surrogate's validity limit).
+    The CDF is analytic, ``F(χ) = 1/2 + sgn(χ) G(|χ|)``,
+    ``G(x) = x (1 + ln(a_max/x)) / (2 a_max)``; its inverse is tabulated.
+    """
+
+    def __init__(self, a: float, b: float, a_max: float | None = None,
+                 n_grid: int = 20001) -> None:
+        super().__init__(a, b)
+        self.a_max = float(a_max) if a_max is not None else max(abs(self.a), abs(self.b))
+        if max(abs(self.a), abs(self.b)) > self.a_max + 1e-12:
+            raise ValueError(f"AlignedSpin bounds [{a}, {b}] exceed a_max={self.a_max}.")
+        A = self.a_max
+
+        def F(c):
+            c = np.asarray(c, float)
+            ax = np.abs(c)
+            g = np.where(ax > 0, ax * (1.0 + np.log(A / np.where(ax > 0, ax, 1.0))) / (2 * A), 0.0)
+            return 0.5 + np.sign(c) * g
+
+        # nodes dense near the integrable log-singularity at chi = 0
+        s = np.linspace(-1.0, 1.0, n_grid)
+        grid = np.sign(s) * np.abs(s) ** 3
+        x = self.a + (grid + 1.0) / 2.0 * (self.b - self.a) if self.a >= 0 or self.b <= 0 else \
+            np.where(grid < 0, -grid * self.a, grid * self.b)
+        x = np.unique(np.concatenate([x, [self.a, self.b]]))
+        cdf = F(x) - F(self.a)
+        Z = float(F(self.b) - F(self.a))
+        self._logZ = float(np.log(Z))
+        self._cdf = jnp.asarray(cdf / Z)
+        self._x = jnp.asarray(x)
+
+    def icdf(self, u: jax.Array) -> jax.Array:
+        return jnp.interp(jnp.asarray(u), self._cdf, self._x)
+
+    def sample(self, rng_key: jax.Array) -> jax.Array:
+        return self.icdf(jax.random.uniform(rng_key))
+
+    def log_prob(self, x: jax.Array) -> jax.Array:
+        x = jnp.asarray(x)
+        ax = jnp.clip(jnp.abs(x), 1e-300, self.a_max)
+        logp = jnp.log(jnp.log(self.a_max / ax) / (2.0 * self.a_max)) - self._logZ
+        return self._mask_support(x, logp)
+
+
 # ── String aliases for ergonomic notebook configuration ───────────────────────
 
 #: Maps short string names to the :class:`PriorSpec` subclass built from
@@ -364,6 +473,10 @@ PRIOR_ALIASES: Dict[str, type] = {
     "volumetric":  Volumetric,
     "volume":      Volumetric,
     "d2":          Volumetric,
+    # LVK / bilby-standard choices
+    "uniform_in_components_chirp_mass": UniformInComponentsChirpMass,
+    "uniform_in_components_mass_ratio": UniformInComponentsMassRatio,
+    "aligned_spin":                     AlignedSpin,
 }
 
 
