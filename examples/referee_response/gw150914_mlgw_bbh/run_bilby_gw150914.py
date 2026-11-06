@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-"""bilby + dynesty (acceptance-walk) PE of GW150914 with LAL SEOBNRv5_ROM — the CPU reference
-for COLAB_GW150914_mlgw_bbh_LVKpriors.ipynb (referee comment 1b).
+"""bilby + dynesty (acceptance-walk) PE of GW150914 with SEOBNRv5HM (2,2) or LAL SEOBNRv5_ROM — the
+CPU reference for COLAB_GW150914_mlgw_bbh_LVKpriors.ipynb (referee comment 1b).
 
 Same frozen inputs as gwjax (data_<psd_mode>/ from freeze_gw150914_data.py, checksum-verified),
 same likelihood (no calibration marginalisation), and the same priors expressed with bilby's
@@ -13,10 +13,17 @@ own classes:
     theta_jn / dec / ra / psi / phase   Sine / Cosine / U(0,2pi) / U(0,pi) / U(0,2pi)
     geocent_time         trigger +- 0.1 s
 
-SEOBNRv5_ROM is the (2,2)-mode, aligned-spin LAL ROM of SEOBNRv5 — the model mlgw_bbh_jax's
-(2,2) mode is a surrogate of. Sampler: dynesty acceptance-walk, naccept 60, dlogz 0.1.
+Waveforms (--approximant):
+    SEOBNRv5HM    pyseobnr via LAL gwsignal (bilby.gw.source.gwsignal_binary_black_hole), with
+                  mode_array [[2,2]] -> the (2,+-2) modes only (checked: |hx/hp| = 2cos(i)/(1+cos^2 i)
+                  to 2e-5). mlgw_bbh_jax model_4 is a surrogate of SEOBNRv5HM, so this is the model
+                  itself; ~50 ms per call (TD EOB + LAL conditioning), first call ~10 s (numba JIT).
+    SEOBNRv5_ROM  the (2,2)-mode aligned-spin LAL ROM of SEOBNRv5 (needs SEOBNRv5ROM_v1.0.hdf5).
+Sampler: dynesty acceptance-walk, naccept 60, dlogz 0.1.
 
     python run_bilby_gw150914.py --npool 16                    # reference run (LDG recommended)
+    python run_bilby_gw150914.py --npool 64 --approximant SEOBNRv5HM   # the model itself, (2,2) only
+    python run_bilby_gw150914.py --approximant SEOBNRv5HM --benchmark 20 # timing only
     python run_bilby_gw150914.py --npool 8 --marginalize       # faster: distance+time+phase marg.
     python run_bilby_gw150914.py --npool 4 --nlive 60 --naccept 5 --approximant IMRPhenomXAS --outdir smoke
                                     # smoke test (~7 min on 4 cores; XAS needs no ROM data)
@@ -43,6 +50,8 @@ ap.add_argument("--naccept", type=int, default=60)
 ap.add_argument("--marginalize", action="store_true", help="distance + time + phase marginalisation")
 ap.add_argument("--approximant", default="SEOBNRv5_ROM")
 ap.add_argument("--seed", type=int, default=150914)
+ap.add_argument("--benchmark", type=int, default=0, metavar="N",
+                help="time N likelihood evaluations at prior draws (1 core), write timing json, exit")
 ap.add_argument("--maxiter", type=int, default=None,
                 help="NOTE: not honoured by bilby 2.8's dynesty wrapper; use a small --nlive for smoke tests")
 args = ap.parse_args()
@@ -91,26 +100,51 @@ def main():
         ifo.minimum_frequency, ifo.maximum_frequency = f_min, f_max
         ifos.append(ifo)
 
-    # Preflight: SEOBNRv5_ROM needs HDF5-enabled LALSimulation + SEOBNRv5ROM_v1.0.hdf5 on $LAL_DATA_PATH.
-    import lal, lalsimulation
-    try:
-        lalsimulation.SimInspiralChooseFDWaveform(
-            35 * lal.MSUN_SI, 30 * lal.MSUN_SI, 0, 0, 0, 0, 0, 0, 4e8 * lal.PC_SI, 0, 0, 0, 0, 0,
-            1.0 / T, f_min, f_max, f_ref, None, lalsimulation.GetApproximantFromString(args.approximant))
-    except RuntimeError as e:
-        raise SystemExit(
-            f"{args.approximant} preflight failed ({e}).\n"
-            "Needs LALSimulation built with HDF5 and SEOBNRv5ROM_v1.0.hdf5 on $LAL_DATA_PATH:\n"
-            "  * LDG: run via run_bilby_gw150914.sh (cvmfs igwn env; copies/uses ../lal_data)\n"
-            "  * local: conda install -c conda-forge lalsuite bilby, then put the ROM file\n"
-            "    (lalsuite-waveform-data on git.ligo.org) in a dir and export LAL_DATA_PATH=<dir>")
+    if args.approximant == "SEOBNRv5HM":
+        # pyseobnr through LAL gwsignal, (2,+-2) modes only. bilby >= 2.7 logs a deprecation warning
+        # on EVERY call of this source (GBs of log over a run): drop that one message (the filter is
+        # installed before the pool forks, so the workers inherit it).
+        import logging
+
+        class _DropDeprecation(logging.Filter):
+            def filter(self, record):
+                return "gwsignal_binary_black_hole is deprecated" not in record.getMessage()
+        bilby.core.utils.logger.addFilter(_DropDeprecation())
+        source = bilby.gw.source.gwsignal_binary_black_hole
+        wargs = dict(waveform_approximant="SEOBNRv5HM", reference_frequency=f_ref,
+                     minimum_frequency=f_min, maximum_frequency=f_max, mode_array=[[2, 2]])
+        try:
+            import pyseobnr  # noqa: F401
+            pol = source(freqs, mass_1=36.0, mass_2=30.0, a_1=0.1, tilt_1=0.0, a_2=0.1, tilt_2=0.0,
+                         phi_12=0.0, phi_jl=0.0, theta_jn=2.5, phase=0.0, luminosity_distance=400.0, **wargs)
+            assert np.any(pol["plus"] != 0)
+        except Exception as e:
+            raise SystemExit(f"SEOBNRv5HM preflight failed ({e!r}): needs pyseobnr + lalsimulation.gwsignal "
+                             "(the cvmfs igwn env has both)")
+        print(f"SEOBNRv5HM (pyseobnr {pyseobnr.__version__}) via gwsignal, mode_array [[2,2]]")
+    else:
+        # Preflight: SEOBNRv5_ROM needs HDF5-enabled LALSimulation + SEOBNRv5ROM_v1.0.hdf5 on $LAL_DATA_PATH.
+        import lal, lalsimulation
+        try:
+            lalsimulation.SimInspiralChooseFDWaveform(
+                35 * lal.MSUN_SI, 30 * lal.MSUN_SI, 0, 0, 0, 0, 0, 0, 4e8 * lal.PC_SI, 0, 0, 0, 0, 0,
+                1.0 / T, f_min, f_max, f_ref, None, lalsimulation.GetApproximantFromString(args.approximant))
+        except RuntimeError as e:
+            raise SystemExit(
+                f"{args.approximant} preflight failed ({e}).\n"
+                "Needs LALSimulation built with HDF5 and SEOBNRv5ROM_v1.0.hdf5 on $LAL_DATA_PATH:\n"
+                "  * LDG: run via run_bilby_gw150914.sh (cvmfs igwn env; copies/uses ../lal_data)\n"
+                "  * local: conda install -c conda-forge lalsuite bilby, then put the ROM file\n"
+                "    (lalsuite-waveform-data on git.ligo.org) in a dir and export LAL_DATA_PATH=<dir>")
+        source = bilby.gw.source.lal_binary_black_hole
+        wargs = dict(waveform_approximant=args.approximant, reference_frequency=f_ref,
+                     minimum_frequency=f_min, maximum_frequency=f_max)
 
     wfg = bilby.gw.WaveformGenerator(
         duration=T, sampling_frequency=fs,
-        frequency_domain_source_model=bilby.gw.source.lal_binary_black_hole,
+        frequency_domain_source_model=source,
         parameter_conversion=bilby.gw.conversion.convert_to_lal_binary_black_hole_parameters,
-        waveform_arguments=dict(waveform_approximant=args.approximant, reference_frequency=f_ref,
-                                minimum_frequency=f_min, maximum_frequency=f_max))
+        waveform_arguments=wargs)
 
     pri = bilby.gw.prior.BBHPriorDict(aligned_spin=True)
     pri["chirp_mass"] = UniformInComponentsChirpMass(15.0, 50.0, name="chirp_mass")
@@ -132,13 +166,29 @@ def main():
         distance_marginalization=args.marginalize, time_marginalization=args.marginalize,
         phase_marginalization=args.marginalize, jitter_time=args.marginalize)
 
+    if args.benchmark:
+        import time, socket
+        draws = pri.sample(args.benchmark)
+        pts = [{k: v[i] for k, v in draws.items()} for i in range(args.benchmark)]
+        like.parameters.update(pts[0]); like.log_likelihood_ratio()          # warm-up (numba JIT)
+        tic = time.perf_counter()
+        for p in pts:
+            like.parameters.update(p); like.log_likelihood_ratio()
+        res = dict(approximant=args.approximant, s_per_likelihood=(time.perf_counter() - tic) / len(pts),
+                   n=len(pts), threads=1, host=socket.gethostname())
+        Path(outdir).mkdir(parents=True, exist_ok=True)
+        json.dump(res, open(Path(outdir) / "timing_benchmark.json", "w"), indent=2)
+        print(json.dumps(res, indent=2))
+        return
+
     result = bilby.run_sampler(
         like, pri, sampler="dynesty", outdir=outdir, label=args.label,
         nlive=args.nlive, naccept=args.naccept, sample="acceptance-walk", dlogz=0.1,
         npool=args.npool, maxiter=args.maxiter, check_point_delta_t=1800,
         check_point_plot=False, plot=False, print_method="interval-60",
         conversion_function=bilby.gw.conversion.generate_all_bbh_parameters,
-        meta_data=dict(frozen_data=str(data), psd_mode=meta["psd_mode"], sha256_16=meta["sha256_16"],
+        meta_data=dict(frozen_data=str(data), approximant=args.approximant,
+                       mode_array=wargs.get("mode_array"), psd_mode=meta["psd_mode"], sha256_16=meta["sha256_16"],
                        start_time=start, trigger_time=trigger, marginalized=args.marginalize))
     print(f"\nlog Z = {result.log_evidence:.3f} +/- {result.log_evidence_err:.3f}   "
           f"log BF = {result.log_bayes_factor:.3f}")
