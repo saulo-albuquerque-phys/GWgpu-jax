@@ -3,16 +3,16 @@
 #   condor_submit run_bilby_gw150914_v5hm.sub
 # Condor file transfer (execute nodes do not necessarily mount $HOME). The output dir comes back on
 # exit and on eviction (ON_EXIT_OR_EVICT); an evicted job restarts from its 30-min checkpoint.
-# Cost: ~47 ms per likelihood call (laptop, 1 core); ~2.5e7 calls -> ~300 CPU-h -> ~8-10 h on 32 cores.
+# Cost: ~47 ms per likelihood call (laptop, 1 core); ~2.5e7 calls -> ~300 CPU-h -> ~16-20 h on 16 cores (8-10 h on 32).
 universe                 = vanilla
 executable               = run_bilby_gw150914_v5hm.sh
-arguments                = 32
+arguments                = 16
 initialdir               = .
 log                      = condor_gw150914_v5hm.log
 output                   = condor_gw150914_v5hm.out
 error                    = condor_gw150914_v5hm.err
-request_cpus             = 32
-request_memory           = 32GB
+request_cpus             = 16
+request_memory           = 16GB
 request_disk             = 8GB
 should_transfer_files    = YES
 when_to_transfer_output  = ON_EXIT_OR_EVICT
