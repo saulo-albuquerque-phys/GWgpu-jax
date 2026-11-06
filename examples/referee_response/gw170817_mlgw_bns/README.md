@@ -36,13 +36,23 @@ naccept 60, maxmcmc 5000, dlogz 0.1).
    point: mlgw_bns_jax vs TEOBResumSPA overlap 0.999999 (hp and hx with the same time/phase shift),
    TEOBResumSPA vs LAL IMRPhenomD_NRTidalv2 0.99985, hx/hp and |hp| identical to LAL conventions.
    The template time origins differ by a fraction of a ms; bilby centres its geocent_time window at
-   (TEOB likelihood peak − `mlgw_tc_peak_offset_s` from `metadata.json`), i.e. where gwjax's TC0 ± 1 ms
+   (TEOB likelihood peak − `mlgw_tc_peak_offset_s` from `metadata.json`), i.e. where gwjax's TC0 ± 10 ms
    window sits relative to its own peak.
 5. **bilby relative binning.** bilby's default `epsilon = 0.5` (62 bins) is off by 1–6 in ln L for
    modest offsets and by ~90 at Λ₁ = 2000; `epsilon = 0.01` (3092 bins) gives |Δln L| ≤ 0.005 near the
    peak (0.05 at Λ = 1500/2500). The TEOB ODE dominates the cost (≈ 40–70 ms per call on one core,
    independent of the bin count); the full likelihood costs ≈ 0.27 s. Network SNR at the paper's
    fiducial point: 32.2 (TEOBResumSPA, GWTC-1 PSD; GWTC-1 quotes 32.4).
+
+6. **tc window (found in the first bilby reference run, Nov 2026).** With tc restricted to ±1 ms (the
+   published gwjax TC_GRID, mirrored in bilby), the geocent_time posterior filled the whole window and was
+   cut off at its early edge. For a BNS the merger time is extrapolated from the inspiral and correlates
+   with Λ̃ (r = −0.62; median Λ̃ 468 in the earliest fifth of the window vs 249 in the latest), so the
+   truncation removed the high-Λ̃ tail: Λ̃ = 354 (+244/−169) vs GWTC-1 406 (+486/−261). Distance
+   (39.2 Mpc), sky, q and χ_eff were unaffected (|r| ≤ 0.4) and agree with GWTC-1. Both codes now use
+   ±10 ms; gwjax RB on that grid matches brute force to ≤ 0.004 in ln L at bilby posterior points
+   including Λ̃ ≈ 800–1000, and 10 µs grid spacing is exact to 4e-4 (normalisation only). The published
+   Λ̃ was affected the same way.
 
 ## Priors (both codes)
 
@@ -54,7 +64,7 @@ naccept 60, maxmcmc 5000, dlogz 0.1).
 | Λ₁, Λ₂ | U(5, 1200) | U(5, 5000) |
 | d_L | ∝ d², [1, 50] Mpc | ∝ d², [1, 75] Mpc |
 | ι, ra, dec, ψ | sin, U, cos, U | same |
-| tc / φ_c | marginalised | gwjax: marginalised (TC0 ± 1 ms, 800 pts / analytic); bilby: geocent_time sampled over 2 ms, phase analytic |
+| tc / φ_c | marginalised over TC0 ± 1 ms (**too narrow**, see finding 6) | gwjax: marginalised (TC0 ± 10 ms, 2001 pts, 10 µs / analytic); bilby: geocent_time sampled over 20 ms, phase analytic |
 
 ## Files
 

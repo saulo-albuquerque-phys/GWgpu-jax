@@ -126,12 +126,15 @@ cells.append(md("## 3. mlgw_bns_jax waveform (unchanged)"))
 cells.append(src_code(lambda s: "MLGWBNSGenerator()" in s and "def waveform_fn" in s))
 
 cells.append(md(r"""
-## 4. tc + φ_c-marginalised relative-binning likelihood (unchanged)
+## 4. tc + φ_c-marginalised relative-binning likelihood
 
-Fiducial point and RB settings as in the paper. tc is marginalised on TC0 ± 1 ms (800 points); the
-mlgw likelihood peak sits at TC0 + `meta["mlgw_tc_peak_offset_s"]` ≈ −0.2 ms, > 100 in ln L above
-the window edges. The bilby run samples geocent_time over a window of the same width placed at the
-same position relative to its own peak.
+Fiducial point and RB bins as in the paper; **the tc window is widened from ±1 ms to ±10 ms** (2001 points,
+10 µs spacing). For a BNS the merger time is extrapolated from the inspiral and is correlated with Λ̃
+(r ≈ −0.6 in the bilby reference run): the published ±1 ms grid truncated the tc posterior and with it the
+high-Λ̃ tail. Validated on the frozen data at bilby posterior points (incl. Λ̃ ≈ 800–1000): RB vs brute
+force on the ±10 ms grid |Δln L| ≤ 0.004; 10 µs vs 2.5 µs spacing differs by a constant 4e-4 (grid
+normalisation only). The bilby run samples geocent_time over a window of the same width placed at the
+same position relative to its own likelihood peak.
 """))
 cells.append(code(r"""
 from gwgpu_jax.gwgpu_jax_relative_binning import (
@@ -142,8 +145,8 @@ TC0 = meta["tc_in_segment"]
 FIDUCIAL = {"mc": 1.1975, "q": 0.85, "chi_1": 0.0, "chi_2": 0.0, "lambda_1": 250.0, "lambda_2": 250.0,
             "distance": 37.0, "inclination": 2.545, "ra": NGC4993_RA, "dec": NGC4993_DEC, "psi": 0.0,
             "tc": TC0, "phi_c": 0.0}
-TC_HALF_WIDTH = 1e-3
-TC_GRID = np.linspace(TC0 - TC_HALF_WIDTH, TC0 + TC_HALF_WIDTH, 800)
+TC_HALF_WIDTH, TC_SPACING = 0.01, 1e-5          # ±10 ms (published run: ±1 ms, too narrow), 10 µs
+TC_GRID = TC0 + TC_SPACING * np.arange(-round(TC_HALF_WIDTH / TC_SPACING), round(TC_HALF_WIDTH / TC_SPACING) + 1)
 N_BINS = 1600
 
 t0 = time.perf_counter()
@@ -162,11 +165,18 @@ cells.append(md(r"""
 
 RB vs the full-grid tc/φ_c-marginalised likelihood at the fiducial and at offsets inside the expected
 posterior (same offsets as the bilby RB check in `run_bilby_gw170817.py --benchmark`), plus a high-Λ point.
+Both are evaluated on every 4th point of `TC_GRID` (the full-grid variant stores an N_tc × N_band phase
+matrix: 501 × 189k fits a T4, 2001 × 189k would need 6 GB).
 """))
 cells.append(code(r"""
 log_L_jit = jax.jit(log_L_tp_marg)
+TC_CHECK = TC_GRID[::4]
+_ll_rb_check, _ = build_rb_likelihood_tc_phi_marg(
+    network=network, waveform_fn=waveform_fn, fiducial_params=FIDUCIAL, tc_grid=TC_CHECK,
+    n_bins=N_BINS, gmst=network.gmst, verbose=False)
+log_L_rb_check = jax.jit(_ll_rb_check)
 log_L_full_tp = jax.jit(build_full_likelihood_tc_phi_marg(
-    network=network, waveform_fn=waveform_fn, fiducial_params=FIDUCIAL, tc_grid=TC_GRID, gmst=network.gmst))
+    network=network, waveform_fn=waveform_fn, fiducial_params=FIDUCIAL, tc_grid=TC_CHECK, gmst=network.gmst))
 fid11 = {k: FIDUCIAL[k] for k in ("mc", "q", "chi_1", "chi_2", "lambda_1", "lambda_2",
                                   "distance", "inclination", "psi", "ra", "dec")}
 t0 = time.perf_counter(); _ = float(log_L_jit(fid11)); T_JIT_RB = time.perf_counter() - t0
@@ -178,7 +188,7 @@ OFFSETS = [{}, dict(mc=1.19755), dict(mc=1.1974, q=0.75), dict(lambda_1=300.0, l
 rb_check = []
 for o in OFFSETS:
     p = {**fid11, **o}
-    a, b = float(log_L_jit(p)), float(log_L_full_tp(p))
+    a, b = float(log_L_rb_check(p)), float(log_L_full_tp(p))
     rb_check.append(dict(offset=o, rb=a, full=b, diff=a - b))
     print(f"{str(o):45s} RB {a:10.3f}  full {b:10.3f}  diff {a - b:+.4f}")
 """))
@@ -269,7 +279,7 @@ json.dump(dict(
                 tc_in_segment=TC0, tc_half_width=TC_HALF_WIDTH, n_tc=len(TC_GRID), n_bins=N_BINS,
                 f_min=meta["minimum_frequency"], f_max=meta["maximum_frequency"],
                 waveform="mlgw_bns_jax default (TEOBResumSPA surrogate), (2,2)",
-                likelihood="relative binning, tc + phi_c marginalised", fiducial=FIDUCIAL,
+                likelihood="relative binning, tc + phi_c marginalised", fiducial=FIDUCIAL, tc_spacing=TC_SPACING,
                 param_bounds=PARAM_BOUNDS, priors=PRIORS, periodic=list(PERIODIC), spin_prior=SPIN_PRIOR,
                 sampler="acceptance-walk NS", num_live=NUM_LIVE, num_delete=NUM_DELETE, n_target=N_TARGET,
                 max_mcmc=MAX_MCMC, log_dlogz_target=LOG_DLOGZ_TARGET, seed=SEED,
@@ -340,7 +350,7 @@ print(f"device {timing['device']}   ({timing['n_rb_bins']} RB bins vs {timing['n
 print(f"  waveform at RB bins        {1e6*t_wf_bins:9.2f} µs / eval (batch {B})")
 print(f"  waveform on full band      {1e6*t_wf_full:9.2f} µs / eval (batch {Bf})")
 print(f"  RB tc/φ-marg likelihood    {1e6*t_rb:9.2f} µs / eval (batch {B})  -> waveform share {t_wf_bins/t_rb:.0%}")
-print(f"  full tc/φ-marg likelihood  {1e3*t_full:9.2f} ms / eval (single)")
+print(f"  full tc/φ-marg likelihood  {1e3*t_full:9.2f} ms / eval (single, {len(TC_CHECK)}-point tc grid)")
 print(f"  JIT compile + first call:  RB {T_JIT_RB:.1f} s, full {T_JIT_FULL:.1f} s; RB setup {T_RB_SETUP:.1f} s")
 if n_evals:
     print(f"  sampler: {n_evals:.3g} likelihood calls in {elapsed:.0f} s -> {1e6*elapsed/n_evals:.1f} µs / call "

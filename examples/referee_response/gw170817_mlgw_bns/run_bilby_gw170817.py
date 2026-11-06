@@ -9,7 +9,7 @@ same likelihood and the same priors:
               mlgw_bns_jax's surrogate is trained on (mlgw_bns_jax reproduces it to overlap 0.999999)
   likelihood  relative binning (bilby RelativeBinningGravitationalWaveTransient, epsilon 0.01, ~3000
               bins: |dlnL| <~ 0.005 vs the full likelihood in the posterior region), phase
-              marginalised analytically; geocent_time SAMPLED over a 2 ms window (gwjax marginalises
+              marginalised analytically; geocent_time SAMPLED over a 20 ms window (gwjax marginalises
               tc numerically over the same width -- identical target; bilby's RB time
               marginalisation would need the full-grid waveform at every call). Fiducial point = the
               gwjax notebook's. No distance or calibration marginalisation (as gwjax).
@@ -20,8 +20,9 @@ same likelihood and the same priors:
               lambda_1,2   Uniform(5, 5000)                               (GWTC-1: 0-5000)
               luminosity_distance PowerLaw(2, 1, 75)
               theta_jn / dec / ra / psi   Sine / Cosine / U(0,2pi) / U(0,pi); phase marginalised
-              geocent_time U(c - 1 ms, c + 1 ms), c = TEOB likelihood peak - mlgw_tc_peak_offset_s,
-                           i.e. the window sits where gwjax's TC0 +- 1 ms sits relative to its peak
+              geocent_time U(c - 10 ms, c + 10 ms), c = TEOB likelihood peak - mlgw_tc_peak_offset_s,
+                           i.e. the window sits where gwjax's TC0 +- 10 ms sits relative to its peak.
+                           (A +-1 ms window truncated the posterior: tc is correlated with lambda_tilde.)
   sampler     dynesty acceptance-walk, nlive 1000, naccept 60, maxmcmc 5000, dlogz 0.1 (= gwjax)
 
     python run_bilby_gw170817.py --npool 32                # LDG (run_bilby_gw170817.sub)
@@ -50,11 +51,14 @@ ap.add_argument("--naccept", type=int, default=60)
 ap.add_argument("--maxmcmc", type=int, default=5000)
 ap.add_argument("--epsilon", type=float, default=0.01, help="RB bin tolerance (bilby default 0.5 is too coarse here)")
 ap.add_argument("--seed", type=int, default=170817)
+ap.add_argument("--tc-half-width", type=float, default=0.01,
+                help="geocent_time window half-width [s] (= gwjax TC_HALF_WIDTH). 10 ms: the first run with 1 ms "
+                     "truncated the tc posterior, which is correlated with lambda_tilde (r = -0.6)")
 ap.add_argument("--benchmark", type=int, default=0, metavar="N",
                 help="time N RB and N/10 full-likelihood evaluations at prior draws, write timing json, exit")
 args = ap.parse_args()
 
-TC_HALF_WIDTH = 1e-3                 # = gwjax TC_GRID half-width
+TC_HALF_WIDTH = args.tc_half_width    # = gwjax TC_GRID half-width
 SPIN_MAX = {"low": 0.05, "high": 0.5}[args.spin_prior]
 
 
@@ -126,7 +130,7 @@ def main():
     tc_center = t_peak - meta["mlgw_tc_peak_offset_s"]
     print(f"TEOBResumSPA tc peak at trigger {1e3 * (t_peak - trigger):+.3f} ms (logLR {max(ll2):.2f}); "
           f"mlgw peak offset {1e3 * meta['mlgw_tc_peak_offset_s']:+.3f} ms -> window centre trigger "
-          f"{1e3 * (tc_center - trigger):+.3f} ms +- {1e3 * TC_HALF_WIDTH:.0f} ms  ({time.perf_counter() - t0:.0f} s)")
+          f"{1e3 * (tc_center - trigger):+.3f} ms +- {1e3 * TC_HALF_WIDTH:.1f} ms  ({time.perf_counter() - t0:.0f} s)")
     fid["geocent_time"] = t_peak
 
     # ── priors ────────────────────────────────────────────────────────────────────────────────
@@ -169,6 +173,8 @@ def main():
         t_full = (time.perf_counter() - tic) / nf
         # accuracy where it matters: small offsets from the fiducial
         offs = [dict(chirp_mass=1.19755), dict(chirp_mass=1.1974, mass_ratio=0.75), dict(lambda_1=300.0, lambda_2=900.0),
+                dict(lambda_1=1500.0, lambda_2=2500.0, geocent_time=t_peak - 3e-3),
+                dict(geocent_time=t_peak - 3e-3), dict(geocent_time=t_peak + 3e-3),
                 dict(chi_1=0.02, chi_2=-0.02), dict(luminosity_distance=30.0, theta_jn=2.2), dict(ra=3.42, dec=-0.38, psi=1.0)]
         acc = [logl(like, dict(fid, **o)) - logl(full, dict(fid, **o)) for o in offs]
         res = dict(rb_s_per_eval=t_rb, full_s_per_eval=t_full, n_bins=len(like.bin_freqs), epsilon=args.epsilon,
