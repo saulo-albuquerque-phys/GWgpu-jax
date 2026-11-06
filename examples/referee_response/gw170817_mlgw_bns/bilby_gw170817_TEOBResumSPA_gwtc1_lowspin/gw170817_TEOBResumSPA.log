@@ -1,0 +1,90 @@
+13:19 INFO    : Waveform generator initiated with
+  frequency_domain_source_model: teobresumspa_source.teobresumspa_bns
+  time_domain_source_model: None
+  parameter_conversion: bilby.gw.conversion.convert_to_lal_binary_neutron_star_parameters
+13:19 INFO    : No prior given, using default BNS priors in /cvmfs/software.igwn.org/conda/envs/igwn/lib/python3.11/site-packages/bilby/gw/prior_files/aligned_spins_bns_tides_on.prior.
+13:19 INFO    : Waveform generator initiated with
+  frequency_domain_source_model: teobresumspa_source.teobresumspa_bns_relative_binning
+  time_domain_source_model: None
+  parameter_conversion: bilby.gw.conversion.convert_to_lal_binary_neutron_star_parameters
+13:19 INFO    : Initial fiducial waveforms set up
+13:19 INFO    : Summary Data Obtained
+13:19 INFO    : Fiducial likelihood: 519.19
+13:19 INFO    : Running for label 'gw170817_TEOBResumSPA', output will be saved to 'bilby_gw170817_TEOBResumSPA_gwtc1_lowspin'
+13:19 INFO    : Performing redundancy check using BBHPriorDict(self).test_redundancy
+13:19 WARNING : Parameter fiducial has no default prior and is set to 0, this will not be sampled and may cause an error.
+13:19 INFO    : Performing redundancy check using BBHPriorDict(self).test_redundancy
+13:19 INFO    : Performing redundancy check using BBHPriorDict(self).test_redundancy
+13:19 INFO    : Performing redundancy check using BBHPriorDict(self).test_redundancy
+13:19 INFO    : Performing redundancy check using BBHPriorDict(self).test_redundancy
+13:19 INFO    : Performing redundancy check using BBHPriorDict(self).test_redundancy
+13:19 INFO    : Performing redundancy check using BBHPriorDict(self).test_redundancy
+13:19 INFO    : Performing redundancy check using BBHPriorDict(self).test_redundancy
+13:19 INFO    : Performing redundancy check using BBHPriorDict(self).test_redundancy
+13:19 INFO    : Performing redundancy check using BBHPriorDict(self).test_redundancy
+13:19 INFO    : Performing redundancy check using BBHPriorDict(self).test_redundancy
+13:19 INFO    : Performing redundancy check using BBHPriorDict(self).test_redundancy
+13:19 INFO    : Performing redundancy check using BBHPriorDict(self).test_redundancy
+13:19 INFO    : Performing redundancy check using BBHPriorDict(self).test_redundancy
+13:19 INFO    : Performing redundancy check using BBHPriorDict(self).test_redundancy
+13:19 INFO    : Performing redundancy check using BBHPriorDict(self).test_redundancy
+13:19 INFO    : Using lal version 7.7.0
+13:19 INFO    : Using lal git version Branch: None;Tag: lal-v7.7.0;Id: ef36dfdf49181b9b376a867b55a14463783de545;;Builder: Adam Mercer <adam.mercer@ligo.org>;Repository status: CLEAN: All modifications committed
+13:19 INFO    : Using lalsimulation version 6.2.0
+13:19 INFO    : Using lalsimulation git version Branch: None;Tag: lalsimulation-v6.2.0;Id: 1338470a6165fb4b4c98bccdd0efe961f05bc8e0;;Builder: Adam Mercer <adam.mercer@ligo.org>;Repository status: CLEAN: All modifications committed
+13:19 INFO    : Analysis priors:
+13:19 INFO    : mass_ratio=bilby.gw.prior.UniformInComponentsMassRatio(minimum=0.34, maximum=1.0, name='mass_ratio', latex_label='$q$', unit=None, boundary=None, equal_mass=False)
+13:19 INFO    : chirp_mass=bilby.gw.prior.UniformInComponentsChirpMass(minimum=1.18, maximum=1.21, name='chirp_mass', latex_label='$\\mathcal{M}$', unit=None, boundary=None)
+13:19 INFO    : luminosity_distance=PowerLaw(alpha=2.0, minimum=1.0, maximum=75.0, name='luminosity_distance', latex_label='$d_L$', unit=None, boundary=None)
+13:19 INFO    : dec=Cosine(minimum=-1.5707963267948966, maximum=1.5707963267948966, name='dec', latex_label='$\\mathrm{DEC}$', unit=None, boundary=None)
+13:19 INFO    : ra=Uniform(minimum=0.0, maximum=6.283185307179586, name='ra', latex_label='$\\mathrm{RA}$', unit=None, boundary='periodic')
+13:19 INFO    : theta_jn=Sine(minimum=0, maximum=3.141592653589793, name='theta_jn', latex_label='$\\theta_{JN}$', unit=None, boundary=None)
+13:19 INFO    : psi=Uniform(minimum=0.0, maximum=3.141592653589793, name='psi', latex_label='$\\psi$', unit=None, boundary='periodic')
+13:19 INFO    : chi_1=bilby.gw.prior.AlignedSpin(a_prior=Uniform(minimum=0.0, maximum=0.05, name=None, latex_label=None, unit=None, boundary=None), z_prior=Uniform(minimum=-1.0, maximum=1.0, name=None, latex_label=None, unit=None, boundary=None), name='chi_1', latex_label='$\\chi_1$', unit=None, boundary=None, minimum=-0.05, maximum=0.05, num_interp=100000)
+13:19 INFO    : chi_2=bilby.gw.prior.AlignedSpin(a_prior=Uniform(minimum=0.0, maximum=0.05, name=None, latex_label=None, unit=None, boundary=None), z_prior=Uniform(minimum=-1.0, maximum=1.0, name=None, latex_label=None, unit=None, boundary=None), name='chi_2', latex_label='$\\chi_2$', unit=None, boundary=None, minimum=-0.05, maximum=0.05, num_interp=100000)
+13:19 INFO    : lambda_1=Uniform(minimum=5.0, maximum=5000.0, name='lambda_1', latex_label='$\\Lambda_1$', unit=None, boundary=None)
+13:19 INFO    : lambda_2=Uniform(minimum=5.0, maximum=5000.0, name='lambda_2', latex_label='$\\Lambda_2$', unit=None, boundary=None)
+13:19 INFO    : geocent_time=Uniform(minimum=1187008882.4270902, maximum=1187008882.42909, name='geocent_time', latex_label='$t_c$', unit=None, boundary=None)
+13:19 INFO    : mass_1=Constraint(minimum=0.5, maximum=5.0, name='mass_1', latex_label='$m_1$', unit=None)
+13:19 INFO    : mass_2=Constraint(minimum=0.5, maximum=5.0, name='mass_2', latex_label='$m_2$', unit=None)
+13:19 INFO    : phase=0.0
+13:19 INFO    : Analysis likelihood class: <class 'bilby.gw.likelihood.relative.RelativeBinningGravitationalWaveTransient'>
+13:19 INFO    : Analysis likelihood noise evidence: -565946.4811770665
+13:19 INFO    : Single likelihood evaluation took 1.990e-02 s
+13:19 INFO    : Using sampler Dynesty with kwargs {'nlive': 1000, 'bound': 'live', 'sample': 'acceptance-walk', 'periodic': None, 'reflective': None, 'update_interval': 600, 'first_update': None, 'npdim': None, 'rstate': None, 'queue_size': 32, 'pool': None, 'use_pool': None, 'live_points': None, 'logl_args': None, 'logl_kwargs': None, 'ptform_args': None, 'ptform_kwargs': None, 'gradient': None, 'grad_args': None, 'grad_kwargs': None, 'compute_jac': False, 'enlarge': None, 'bootstrap': None, 'walks': 100, 'facc': 0.2, 'slices': None, 'fmove': 0.9, 'max_move': 100, 'update_func': None, 'ncdim': None, 'blob': False, 'save_history': False, 'history_filename': None, 'maxiter': None, 'maxcall': None, 'dlogz': 0.1, 'logl_max': inf, 'n_effective': None, 'add_live': True, 'print_progress': True, 'print_func': <bound method Dynesty._print_func of <bilby.core.sampler.dynesty.Dynesty object at 0x14ecd1998490>>, 'save_bounds': False, 'checkpoint_file': None, 'checkpoint_every': 60, 'resume': False, 'seed': None}
+13:19 INFO    : Global meta data was removed from the result object for compatibility. Use the `BILBY_INCLUDE_GLOBAL_METADATA` environment variable to include it. This behaviour will be removed in a future release. For more details see: https://bilby-dev.github.io/bilby/faq.html#global-meta-data
+13:19 INFO    : Checkpoint every check_point_delta_t = 1800s
+13:19 INFO    : Using dynesty version 2.1.5
+13:19 INFO    : Using the bilby-implemented acceptance-walk sampling with an average of 60 accepted steps per MCMC and maximum length 5000
+13:19 INFO    : Setting up multiproccesing pool with 32 processes
+13:19 INFO    : Resume file bilby_gw170817_TEOBResumSPA_gwtc1_lowspin/gw170817_TEOBResumSPA_resume.pickle does not exist.
+13:19 INFO    : Generating initial points from the prior
+13:50 INFO    : Written checkpoint file bilby_gw170817_TEOBResumSPA_gwtc1_lowspin/gw170817_TEOBResumSPA_resume.pickle
+14:20 INFO    : Written checkpoint file bilby_gw170817_TEOBResumSPA_gwtc1_lowspin/gw170817_TEOBResumSPA_resume.pickle
+14:50 INFO    : Written checkpoint file bilby_gw170817_TEOBResumSPA_gwtc1_lowspin/gw170817_TEOBResumSPA_resume.pickle
+15:21 INFO    : Written checkpoint file bilby_gw170817_TEOBResumSPA_gwtc1_lowspin/gw170817_TEOBResumSPA_resume.pickle
+15:51 INFO    : Written checkpoint file bilby_gw170817_TEOBResumSPA_gwtc1_lowspin/gw170817_TEOBResumSPA_resume.pickle
+16:21 INFO    : Written checkpoint file bilby_gw170817_TEOBResumSPA_gwtc1_lowspin/gw170817_TEOBResumSPA_resume.pickle
+16:51 INFO    : Written checkpoint file bilby_gw170817_TEOBResumSPA_gwtc1_lowspin/gw170817_TEOBResumSPA_resume.pickle
+17:21 INFO    : Written checkpoint file bilby_gw170817_TEOBResumSPA_gwtc1_lowspin/gw170817_TEOBResumSPA_resume.pickle
+17:52 INFO    : Written checkpoint file bilby_gw170817_TEOBResumSPA_gwtc1_lowspin/gw170817_TEOBResumSPA_resume.pickle
+18:22 INFO    : Written checkpoint file bilby_gw170817_TEOBResumSPA_gwtc1_lowspin/gw170817_TEOBResumSPA_resume.pickle
+18:53 INFO    : Written checkpoint file bilby_gw170817_TEOBResumSPA_gwtc1_lowspin/gw170817_TEOBResumSPA_resume.pickle
+19:23 INFO    : Written checkpoint file bilby_gw170817_TEOBResumSPA_gwtc1_lowspin/gw170817_TEOBResumSPA_resume.pickle
+19:32 INFO    : Written checkpoint file bilby_gw170817_TEOBResumSPA_gwtc1_lowspin/gw170817_TEOBResumSPA_resume.pickle
+19:32 INFO    : Starting to close worker pool.
+19:32 INFO    : Finished closing worker pool.
+19:32 INFO    : Rejection sampling nested samples to obtain 4704 posterior samples
+19:32 INFO    : Sampling time: 6:11:45.802741
+19:32 INFO    : Computing per-detector log likelihoods.
+19:32 INFO    : Using a pool with size 32 for nsamples=4704
+19:32 INFO    : Reconstructing marginalised parameters.
+19:32 INFO    : Using a pool with size 32 for nsamples=4704
+19:32 INFO    : Computing SNRs for every sample.
+19:32 INFO    : Using a pool with size 32 for nsamples=4704
+19:32 INFO    : Summary of results:
+nsamples: 4704
+ln_noise_evidence: -565946.481
+ln_evidence: -565454.552 +/-  0.188
+ln_bayes_factor: 491.929 +/-  0.188
+
