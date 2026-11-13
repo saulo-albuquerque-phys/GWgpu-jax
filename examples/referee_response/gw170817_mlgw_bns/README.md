@@ -53,6 +53,12 @@ naccept 60, maxmcmc 5000, dlogz 0.1).
    ±10 ms; gwjax RB on that grid matches brute force to ≤ 0.004 in ln L at bilby posterior points
    including Λ̃ ≈ 800–1000, and 10 µs grid spacing is exact to 4e-4 (normalisation only). The published
    Λ̃ was affected the same way.
+   **Rerun with ±10 ms (bilby run #2, Nov 2026):** tc posterior fully contained (99%: −4.9 to +1.6 ms
+   about the window centre); only 49% of it lies inside the old ±1 ms window, consistent with the
+   evidence: ln BF 490.20 vs 491.93, i.e. −1.73 instead of the −ln 10 = −2.30 a fully contained ±1 ms
+   posterior would give (≈43% of the mass was outside). corr(tc, Λ̃) = −0.92. Λ̃ = 513 (−318/+574);
+   d_L 39.2, q 0.871, χ_eff 0.004, θ_JN 2.55 unchanged. GWTC-1 (PhenomPv2NRT, precessing, 23–2048 Hz):
+   Λ̃ 406 (−261/+486) — consistent within the (broad) errors.
 
 ## Priors (both codes)
 

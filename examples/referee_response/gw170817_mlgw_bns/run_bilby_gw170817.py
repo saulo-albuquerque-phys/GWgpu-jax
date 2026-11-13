@@ -51,6 +51,11 @@ ap.add_argument("--naccept", type=int, default=60)
 ap.add_argument("--maxmcmc", type=int, default=5000)
 ap.add_argument("--epsilon", type=float, default=0.01, help="RB bin tolerance (bilby default 0.5 is too coarse here)")
 ap.add_argument("--seed", type=int, default=170817)
+ap.add_argument("--periodic-restart-time", type=int, default=0, metavar="SEC",
+                help="checkpoint and exit with code 77 after SEC seconds (HTCondor self-checkpointing: with "
+                     "checkpoint_exit_code = 77 condor saves the checkpoint and restarts the job). LDG evictions "
+                     "(code 1019) are not graceful: without this, each one lost everything since the last "
+                     "graceful exit. 0 = off")
 ap.add_argument("--tc-half-width", type=float, default=0.01,
                 help="geocent_time window half-width [s] (= gwjax TC_HALF_WIDTH). 10 ms: the first run with 1 ms "
                      "truncated the tc posterior, which is correlated with lambda_tilde (r = -0.6)")
@@ -185,9 +190,13 @@ def main():
         print(json.dumps(res, indent=2))
         return
 
+    if args.periodic_restart_time > 0:
+        import signal
+        signal.alarm(args.periodic_restart_time)     # bilby's SIGALRM handler: checkpoint, exit 77
+        print(f"periodic restart: checkpoint + exit 77 after {args.periodic_restart_time} s")
     result = bilby.run_sampler(
         like, pri, sampler="dynesty", outdir=outdir, label=args.label,
-        nlive=args.nlive, naccept=args.naccept, maxmcmc=args.maxmcmc, sample="acceptance-walk", dlogz=0.1,
+        nlive=args.nlive, naccept=args.naccept, maxmcmc=args.maxmcmc, sample="acceptance-walk", dlogz=0.1, exit_code=77,
         npool=args.npool, check_point_delta_t=1800, check_point_plot=False, plot=False,
         print_method="interval-60",
         conversion_function=bilby.gw.conversion.generate_all_bns_parameters,

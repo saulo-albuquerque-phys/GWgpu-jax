@@ -13,9 +13,14 @@
 # (H = 25 nats, 1194 its): ~3e4 iterations x ~500 calls = ~1.5e7 calls = ~300 CPU-h.
 # Wall time: 32 cores ~10 h (default), 64 cores ~5-6 h, 128 cores ~3-4 h at lower efficiency
 # (dynesty's parallel proposals stop scaling at ~5-10% of nlive).
+# SELF-CHECKPOINTING (Nov 2026): LDG evictions (code 1019) are not graceful, so the output dir was NOT
+# transferred back and each eviction lost everything since the last graceful exit (GW150914 job:
+# 158 h run, ~8 h kept). Now the job checkpoints and exits with code 77 every 7200 s
+# (--periodic-restart-time); condor saves transfer_checkpoint_files and restarts it at once. A hard
+# eviction therefore costs at most ~2 h. Tested locally: exit 77 + 'Resume file successfully loaded'.
 universe                 = vanilla
 executable               = run_bilby_gw170817.sh
-arguments                = 32
+arguments                = 32 --periodic-restart-time 7200
 initialdir               = .
 log                      = condor_gw170817.log
 output                   = condor_gw170817.out
@@ -27,6 +32,8 @@ should_transfer_files    = YES
 when_to_transfer_output  = ON_EXIT_OR_EVICT
 transfer_input_files     = run_bilby_gw170817.py, teobresumspa_source.py, data_gwtc1, pylib
 transfer_output_files    = bilby_gw170817_TEOBResumSPA_gwtc1_lowspin
+checkpoint_exit_code     = 77
+transfer_checkpoint_files = bilby_gw170817_TEOBResumSPA_gwtc1_lowspin
 accounting_group         = ligo.dev.o4.cbc.pe.bilby
 accounting_group_user    = saulo.soares-de-albuquerque-filho
 queue

@@ -50,6 +50,11 @@ ap.add_argument("--naccept", type=int, default=60)
 ap.add_argument("--marginalize", action="store_true", help="distance + time + phase marginalisation")
 ap.add_argument("--approximant", default="SEOBNRv5_ROM")
 ap.add_argument("--seed", type=int, default=150914)
+ap.add_argument("--periodic-restart-time", type=int, default=0, metavar="SEC",
+                help="checkpoint and exit with code 77 after SEC seconds (HTCondor self-checkpointing: with "
+                     "checkpoint_exit_code = 77 condor saves the checkpoint and restarts the job). LDG evictions "
+                     "(code 1019) are not graceful: without this, each one lost everything since the last "
+                     "graceful exit. 0 = off")
 ap.add_argument("--benchmark", type=int, default=0, metavar="N",
                 help="time N likelihood evaluations at prior draws (1 core), write timing json, exit")
 ap.add_argument("--maxiter", type=int, default=None,
@@ -181,9 +186,13 @@ def main():
         print(json.dumps(res, indent=2))
         return
 
+    if args.periodic_restart_time > 0:
+        import signal
+        signal.alarm(args.periodic_restart_time)     # bilby's SIGALRM handler: checkpoint, exit 77
+        print(f"periodic restart: checkpoint + exit 77 after {args.periodic_restart_time} s")
     result = bilby.run_sampler(
         like, pri, sampler="dynesty", outdir=outdir, label=args.label,
-        nlive=args.nlive, naccept=args.naccept, sample="acceptance-walk", dlogz=0.1,
+        nlive=args.nlive, naccept=args.naccept, sample="acceptance-walk", dlogz=0.1, exit_code=77,
         npool=args.npool, maxiter=args.maxiter, check_point_delta_t=1800,
         check_point_plot=False, plot=False, print_method="interval-60",
         conversion_function=bilby.gw.conversion.generate_all_bbh_parameters,
