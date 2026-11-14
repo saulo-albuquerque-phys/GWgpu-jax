@@ -65,7 +65,12 @@ arXiv:2402.10797) if you use this sampler.
 
 - **Python 3.11 or 3.12** — the `mlgw` extra installs TensorFlow < 2.16 (Keras 2)
   on 3.11 and TensorFlow ≥ 2.16 (Keras 3) on 3.12 (current Google Colab); both give
-  bit-identical mlgw waveforms. Python 3.13 is not supported (no jaxlib 0.4.x wheels).
+  bit-identical mlgw waveforms. Python 3.13 is not supported.
+- **JAX ≥ 0.4.31** (no upper bound; checked with 0.4.31, 0.4.38, 0.5.2 and 0.12). `jax`, `jaxlib`
+  and the CUDA plugin must come from the same release. On Google Colab use the image's own jax —
+  the Colab notebooks keep it, freeze it with a pip constraints file before installing gwgpu_jax,
+  and check the mlgw waveforms against reference values (`examples/referee_response/waveform_reference/`)
+  before sampling.
 - Git
 
 ### Install from GitHub (pip — recommended)

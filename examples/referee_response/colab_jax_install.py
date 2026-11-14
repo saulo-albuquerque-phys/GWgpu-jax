@@ -1,64 +1,159 @@
-"""Make the Colab install cell of the referee-response notebooks install jax 0.4.31 cleanly.
+"""Colab install cell + waveform self-check for the gwgpu_jax Colab notebooks (Python 3.12 image).
 
-Colab's Python 3.12 image (runtime 2026.1) ships jax/jaxlib 0.4.38. `pip uninstall` leaves
-some of their files behind (stale jax-0.4.38.dist-info, and a jax_cuda12_plugin whose compiled
-_triton module does not match 0.4.31), so after `pip install jax[cuda12]==0.4.31`, `import jax`
-fails with "partially initialized module 'jax' has no attribute 'version'" (root cause:
-`jax_cuda12_plugin._triton has no attribute get_arch_details`). The replacement cell deletes
-every jax / jaxlib / cuda-plugin folder before reinstalling. Verified on Colab Nov 2026:
-`0.4.31 [CudaDevice(id=0)]`.
+History
+-------
+* The notebooks used to force jax 0.4.31 over Colab's preinstalled jax. On the Python 3.12 image
+  (runtime 2026.1, which ships jax 0.4.38 + TF 2.19) that left files of both versions behind
+  (`import jax` -> "partially initialized module 'jax'"), and even after a clean reinstall the
+  kernel died a few minutes into sampling -- most likely jax 0.4.31's CUDA plugin running against
+  the image's newer CUDA/cuDNN.
+* Now: keep Colab's own jax (its CUDA plugin matches the image), install jax only if it is missing
+  or has no GPU backend, and freeze the jax/TF stack with a pip constraints file so installing
+  gwgpu_jax cannot upgrade or downgrade any of it (an unconstrained `tf2jax` would otherwise pull
+  jax >= 0.7.1 and TF >= 2.20).
+* Because the jax / TF / Keras / tf2jax versions are no longer fixed, each notebook gets a cell that
+  compares mlgw waveforms against reference values computed in the validated environment
+  (Python 3.11, jax 0.4.31, TF 2.15, Keras 2) and stops if they differ. Checked locally (Nov 2026):
+  identical for jax 0.4.31 / 0.4.38 / 0.5.2 (+TF 2.16-2.18, Keras 3) and, for mlgw_bns and the
+  GW170817 likelihood, jax 0.12 (rel. diff <= 4e-11).
 
-Used by the notebook builders (build_notebook.py) and runnable on a notebook directly:
+Used by the notebook builders (build_notebook.py); also runnable on notebooks directly:
 
-    python colab_jax_install.py NOTEBOOK.ipynb [...]
+    python colab_jax_install.py [--check bbh|bns --after SUBSTRING] NOTEBOOK.ipynb [...]
 """
+import argparse
 import json
 import re
-import sys
+from pathlib import Path
 
-_OLD = re.compile(
-    r'(?P<ind>[ \t]*)!pip uninstall -y -q jax jaxlib jax-cuda12-plugin jax-cuda12-pjrt[^\n]*\n'
+REF_DIR = Path(__file__).resolve().parent / "waveform_reference"
+CONSTRAINTS = "/content/gwjax_constraints.txt"
+# gwgpu_jax branch the notebooks pip-install (the jax / Python 3.12 changes live here until merged;
+# set back to "acceptance_walk_sampler" after the merge and rerun the builders / this script).
+INSTALL_BRANCH = "py312_modern_jax"
+
+# --- install cell -----------------------------------------------------------------------------
+# The two forms found in the notebooks: the original forced 0.4.31 install, and the Nov 2026
+# "clean 0.4.31 install" block (commit 599d4b5).
+_OLD_FORCED = re.compile(
+    r'(?P<ind>[ \t]*)(?:#[^\n]*\n(?P=ind))?!pip uninstall -y -q jax jaxlib jax-cuda12-plugin jax-cuda12-pjrt[^\n]*\n'
     r'(?P=ind)!pip install -q "jax\[cuda12\]==0\.4\.31" "jaxlib==0\.4\.31"[^\n]*\n'
 )
+_OLD_CLEAN = re.compile(
+    r'(?P<ind>[ \t]*)# Clean jax 0\.4\.31 install\.[^\n]*\n'
+    r'(?:(?P=ind)[^\n]*\n)*?'
+    r'(?P=ind)!python -c "import jax; print\(\'jax\', jax\.__version__, jax\.devices\(\)\)"\n'
+)
+_OLD_BARE = re.compile(r'(?P<ind>[ \t]*)!pip install -q "jax\[cuda12\]==0\.4\.31" "jaxlib==0\.4\.31"[^\n]*\n')
 
-_NEW = '''{ind}# Clean jax 0.4.31 install. Colab's image ships jax 0.4.38, whose files survive a plain
-{ind}# `pip uninstall` and break `import jax` ("partially initialized module 'jax'"), so delete
-{ind}# every jax / jaxlib / CUDA-plugin folder first.
-{ind}import importlib.util as _ilu, os as _os
-{ind}_spec = _ilu.find_spec("jax")
-{ind}_SP = _os.path.dirname(_os.path.dirname(_spec.origin)) if _spec and _spec.origin else ""
-{ind}!pip uninstall -y -q jax jaxlib jax-cuda12-plugin jax-cuda12-pjrt 2>/dev/null
-{ind}if _SP:
-{ind}    !cd "{{_SP}}" && rm -rf jax jax-*.dist-info jaxlib jaxlib-*.dist-info jax_cuda12_plugin jax_cuda12_plugin-*.dist-info jax_cuda12_pjrt jax_cuda12_pjrt-*.dist-info jax_plugins
-{ind}!pip install -q --no-cache-dir "jax[cuda12]==0.4.31" "jaxlib==0.4.31"
+_NEW = '''{ind}# Use Colab's own GPU jax: its CUDA plugin matches the image's CUDA/cuDNN (forcing jax 0.4.31
+{ind}# over it crashed the kernel on the Python 3.12 image). Install jax only if it is missing or has
+{ind}# no GPU, then freeze jax/TF so the gwgpu_jax install below cannot change them.
+{ind}import subprocess as _sp, sys as _sys
+{ind}if _sp.run([_sys.executable, "-c", "import jax, sys; sys.exit(jax.default_backend() != 'gpu')"],
+{ind}           capture_output=True).returncode != 0:
+{ind}    !pip install -q -U "jax[cuda12]"
+{ind}!pip freeze | grep -iE "^(jax|jaxlib|jax-cuda[0-9]+-(plugin|pjrt)|tensorflow|keras|ml.dtypes|numpy)==" > {constraints}
 {ind}!python -c "import jax; print('jax', jax.__version__, jax.devices())"
 '''
 
-
-def patch_source(src: str) -> tuple[str, int]:
-    return _OLD.subn(lambda m: _NEW.format(ind=m.group("ind")), src)
+_GWGPU_PIP = re.compile(r'!pip install -q (?!-c )(["\']gwgpu_jax)')
 
 
-def patch_cells(cells) -> int:
-    """Patch the install cell(s) in place; returns the number of replacements."""
+def patch_install(src: str) -> tuple[str, int]:
+    new = lambda m: _NEW.format(ind=m.group("ind"), constraints=CONSTRAINTS)
+    n = 0
+    for pat in (_OLD_CLEAN, _OLD_FORCED, _OLD_BARE):
+        src, k = pat.subn(new, src)
+        n += k
+    n += src.count("# Use Colab's own GPU jax:") if not n else 0
+    if n:
+        src = _GWGPU_PIP.sub(rf'!pip install -q -c {CONSTRAINTS} \1', src)
+        src = re.sub(r'GWgpu-jax\.git(@[\w./-]+)?"', f'GWgpu-jax.git@{INSTALL_BRANCH}"', src)
+        src = re.sub(r'(OWNER, REPO, BRANCH = "saulo-albuquerque-phys", "GWgpu-jax", )"(acceptance_walk_sampler|py312_modern_jax)"',
+                     rf'\1"{INSTALL_BRANCH}"', src)
+    return src, n
+
+
+# --- waveform self-check cell ---------------------------------------------------------------------
+_CHECK = {
+    "bns": '''# Waveform self-check: mlgw_bns_jax vs reference values from the validated environment
+# ({env}). Guards against jax / TF version changes on Colab.
+import numpy as _np, jax as _jax, jax.numpy as _jnp
+_jax.config.update("jax_enable_x64", True)
+from gwgpu_jax.mlgw_jax.mlgw_bns_jax_waveform_generator import MLGWBNSGenerator as _G
+_REF = {ref}
+_g, _f = _G(), _jnp.asarray(_REF["freqs"])
+for _k in ("case0", "case1"):
+    _hp, _hc = _g.get_hphc(_f, *_REF[_k]["params"], 40.0, 2.5)
+    for _name, _h in (("hp", _hp), ("hc", _hc)):
+        _r = _np.array(_REF[_k][_name]); _r = _r[:, 0] + 1j * _r[:, 1]
+        _err = float(_np.max(_np.abs(_np.asarray(_h) - _r)) / _np.max(_np.abs(_r)))
+        assert _err < 1e-6, f"mlgw_bns {{_k}} {{_name}} differs from reference: rel. diff {{_err:.1e}}"
+print(f"✓ mlgw_bns waveforms match the reference (jax {{_jax.__version__}})")
+del _g
+''',
+    "bbh": '''# Waveform self-check: mlgw_bbh_jax model_4 vs reference values from the validated environment
+# ({env}). Guards against jax / TF / Keras / tf2jax version changes on Colab.
+import numpy as _np, jax as _jax, jax.numpy as _jnp
+_jax.config.update("jax_enable_x64", True)
+from gwgpu_jax.mlgw_jax.mlgw_bbh_jax_waveform_generator import MLGWBBHGenerator as _G
+_REF = {ref}
+_g = _G(model=4)
+_t = _jnp.linspace(-3.9, 0.1, 16384, endpoint=False)
+for _k in ("case0", "case1"):
+    _hp, _hc = _g.get_hphc(_t, *_REF[_k]["params"], 400.0, 0.5, 0.3, modes=(2, 2))
+    for _name, _h in (("hp", _hp), ("hc", _hc)):
+        _r = _np.array(_REF[_k][_name])
+        _err = float(_np.max(_np.abs(_np.asarray(_h)[_REF["idx"]] - _r)) / _np.max(_np.abs(_r)))
+        assert _err < 1e-6, f"mlgw_bbh {{_k}} {{_name}} differs from reference: rel. diff {{_err:.1e}}"
+import tensorflow as _tf
+print(f"✓ mlgw_bbh waveforms match the reference (jax {{_jax.__version__}}, TF {{_tf.__version__}})")
+del _g
+''',
+}
+_CHECK_TAG = "# Waveform self-check:"
+
+
+def check_cell(kind: str) -> dict:
+    ref = json.load(open(REF_DIR / f"mlgw_{kind}_reference.json"))
+    src = _CHECK[kind].format(env=ref.pop("env"), ref=json.dumps(ref, separators=(",", ":")))
+    return {"cell_type": "code", "execution_count": None, "metadata": {}, "outputs": [],
+            "source": src.splitlines(keepends=True)}
+
+
+def _src(c):
+    return "".join(c["source"]) if isinstance(c["source"], list) else c["source"]
+
+
+def patch_cells(cells, check: str | None = None, after: str | None = None) -> int:
+    """Patch the install cell(s) in place; optionally insert/refresh the waveform self-check
+    right after the first code cell containing `after`. Returns the number of install cells patched."""
     n = 0
     for c in cells:
-        if c.get("cell_type") != "code":
-            continue
-        src = "".join(c["source"]) if isinstance(c["source"], list) else c["source"]
-        new, k = patch_source(src)
-        if k:
-            c["source"] = new.splitlines(keepends=True)
-            n += k
+        if c.get("cell_type") == "code":
+            new, k = patch_install(_src(c))
+            if k:
+                c["source"] = new.splitlines(keepends=True)
+                n += k
+    if check:
+        cells[:] = [c for c in cells if not _src(c).startswith(_CHECK_TAG)]
+        i = next(i for i, c in enumerate(cells) if c.get("cell_type") == "code" and after in _src(c))
+        cells.insert(i + 1, check_cell(check))
     return n
 
 
 if __name__ == "__main__":
-    for path in sys.argv[1:]:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("notebooks", nargs="+")
+    ap.add_argument("--check", choices=["bbh", "bns"])
+    ap.add_argument("--after", help="insert the self-check after the first code cell containing this")
+    a = ap.parse_args()
+    for path in a.notebooks:
         text = open(path, encoding="utf-8").read()
         nb = json.loads(text)
-        n = patch_cells(nb["cells"])
-        if n:   # keep the file's existing escaping and trailing newline
-            out = json.dumps(nb, indent=1, ensure_ascii=text.isascii())
-            open(path, "w", encoding="utf-8").write(out + ("\n" if text.endswith("\n") else ""))
-        print(f"{path}: {n} install cell(s) patched")
+        n = patch_cells(nb["cells"], a.check, a.after)
+        indent = len(text.split("\n", 1)[1]) - len(text.split("\n", 1)[1].lstrip(" "))
+        out = json.dumps(nb, indent=indent or 1, ensure_ascii=text.isascii())   # keep the file's format
+        open(path, "w", encoding="utf-8").write(out + ("\n" if text.endswith("\n") else ""))
+        print(f"{path}: {n} install cell(s) patched" + (f", {a.check} self-check inserted" if a.check else ""))

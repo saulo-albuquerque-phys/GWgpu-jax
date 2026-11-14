@@ -450,8 +450,8 @@ Download `RUN_DIR` from Drive, then on a machine with this repo:
 
 import sys as _sys
 _sys.path.insert(0, str(HERE.parent))
-from colab_jax_install import patch_cells   # clean jax 0.4.31 install on Colab (Python 3.12 image)
-assert patch_cells(cells) == 1, "jax install cell not found"
+from colab_jax_install import patch_cells   # Colab install cell (keep Colab jax) + waveform self-check
+assert patch_cells(cells, check="bns", after="MLGWBNSGenerator()") == 1, "jax install cell not found"
 nb = {"cells": cells, "nbformat": 4, "nbformat_minor": 0,
       "metadata": {"accelerator": "GPU", "colab": {"gpuType": "A100", "machine_shape": "hm", "provenance": [],
                                                   "include_colab_link": True},

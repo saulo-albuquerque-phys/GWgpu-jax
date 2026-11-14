@@ -366,7 +366,7 @@ for c in new_cells:
 nb["cells"] = new_cells
 import sys as _sys
 _sys.path.insert(0, str(HERE.parent))
-from colab_jax_install import patch_cells   # clean jax 0.4.31 install on Colab (Python 3.12 image)
-assert patch_cells(nb["cells"]) == 1, "jax install cell not found"
+from colab_jax_install import patch_cells   # Colab install cell (keep Colab jax) + waveform self-check
+assert patch_cells(nb["cells"], check="bbh", after="MLGW-JAX.git") == 1, "jax install cell not found"
 json.dump(nb, open(OUT, "w"), indent=1, ensure_ascii=False)
 print(f"wrote {OUT.name}: {len(new_cells)} cells")
