@@ -54,7 +54,7 @@ relative-binning likelihood and sampler; differences:
 | χ₁, χ₂ | U(−0.15, 0.15) | LVK **AlignedSpin**, \|a\| ≤ 0.05 (GWTC-1 low-spin; `SPIN_PRIOR = "high"`: 0.5, surrogate limit) |
 | Λ₁, Λ₂ (comment 1c) | U(5, 1200) | **U(5, 5000)** (GWTC-1: 0–5000; surrogate trained on 5–5000) |
 | d_L | ∝ d² on [1, 50] Mpc | ∝ d² on [1, 75] Mpc |
-| sampler | nlive 2000, n_target 80, maxmcmc 1500, num_delete 150 | nlive 1000, n_target 60, maxmcmc 5000, num_delete 500, stop ≡ bilby dlogz < 0.1 (= the bilby reference run) |
+| sampler | nlive 2000, n_target 80, maxmcmc 1500, num_delete 150 | nlive 1000, n_target 60, maxmcmc 5000, num_delete 100, stop ≡ bilby dlogz < 0.1 (= the bilby reference run) |
 
 The bilby reference (`run_bilby_gw170817.py`, TEOBResumSPA, same frozen data, priors and settings) runs on
 LDG; `compare_gwjax_bilby.sh` turns the two into the JSD table. Section 9 is the run-time breakdown asked
@@ -239,7 +239,9 @@ Same settings as the bilby reference: 1000 live points, 60 accepted steps per ne
 per (batched) iteration where dynesty replaces one.
 """))
 cells.append(code(r"""
-NUM_LIVE, NUM_DELETE, N_TARGET, MAX_MCMC = 1000, 500, 60, 5000
+# NUM_DELETE = 100 (10% of the live points per iteration). With 500 (50%) the run of 2026-11-14 was
+# over-concentrated: posterior 10-20% narrower than bilby and ln Z 3.8 too high (check_sampler_consistency.py).
+NUM_LIVE, NUM_DELETE, N_TARGET, MAX_MCMC = 1000, 100, 60, 5000
 LOG_DLOGZ_TARGET = float(np.log(np.expm1(0.1)))
 SEED = 0
 sampler = gwgpu_jax.GWgpu_jaxAcceptanceWalkSampler.from_loglikelihood(
