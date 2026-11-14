@@ -234,19 +234,20 @@ cells.append(src_code(lambda s: "blackjax_ns_gw" in s and "custom_kernels" in s)
 cells.append(md(r"""
 ## 7. Run the nested sampler
 
-`SAMPLER = "nss"` (default): blackjax nested slice sampling with the settings used in romjax —
+`SAMPLER = "nss"`: blackjax nested slice sampling with the settings used in romjax —
 5% of the live points replaced per iteration, 120 inner slice steps (4 × dim = 44 is the faster
 default there; 120 is what its P-P rerun uses), live points started from
 the prior, stop when `ln Z_live − ln Z < ln 0.1`.
 
-`SAMPLER = "acceptance_walk"`: the bilby-like differential-evolution walk (60 accepted steps per
+`SAMPLER = "acceptance_walk"` (default; run 20261114_162230 matches the bilby reference: ln BF 489.95 ± 0.16
+vs 490.20 ± 0.19, all JSDs ≤ 0.003 bit): the bilby-like differential-evolution walk (60 accepted steps per
 new point on average, maxmcmc 5000, stop at bilby's `dlogz < 0.1`). gwgpu_jax runs it with a fixed
 number of steps per chain, as bilby does. The walk shipped with the external kernel stops after a
 fixed number of *accepted* steps instead, which made the first two revision runs (14 Nov 2026)
 10–20% too narrow with ln Z about 4 too high.
 """))
 cells.append(code(r"""
-SAMPLER  = "nss"          # "nss" | "acceptance_walk"
+SAMPLER  = "acceptance_walk"   # "acceptance_walk" (the run compared with bilby, 14 Nov 2026) | "nss"
 NUM_LIVE = 1000
 SEED     = 0
 D        = len(PARAM_BOUNDS)
