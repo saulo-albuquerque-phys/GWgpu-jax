@@ -57,6 +57,19 @@ _NEW = '''{ind}# Use Colab's own GPU jax: its CUDA plugin matches the image's CU
 {ind}!python -c "import jax; print('jax', jax.__version__, jax.devices())"
 '''
 
+# tf2jax (converts the mlgw_bbh Keras nets to JAX): with TF frozen at Colab's 2.19, pip picks
+# tf2jax <= 0.3.7, which uses jax.util.safe_zip -- removed in jax 0.7. tf2jax 0.3.8 is the release
+# for jax >= 0.7; it declares TF >= 2.20 but has no runtime TF version check, so install it without
+# dependencies. The waveform self-check cell validates the result numerically.
+_TF2JAX_TAG = "# tf2jax <= 0.3.7 uses jax.util.safe_zip"
+_TF2JAX = """{ind}# tf2jax <= 0.3.7 uses jax.util.safe_zip (removed in jax 0.7); 0.3.8 is the jax>=0.7 release.
+{ind}# It declares TF >= 2.20 but does not check it at run time -> install without deps (Colab TF is
+{ind}# frozen); the waveform self-check cell below validates the converted networks.
+{ind}if _sp.run([_sys.executable, "-c", "import jax, sys; sys.exit(tuple(map(int, jax.__version__.split('.')[:2])) < (0, 7))"]).returncode == 0:
+{ind}    !pip install -q --no-deps "tf2jax==0.3.8"
+"""
+_MLGW_PIP_LINE = re.compile(r'(?P<ind>[ \t]*)!pip install -q -c [^\n]*gwgpu_jax\[[^\]]*mlgw[^\n]*\n')
+
 _GWGPU_PIP = re.compile(r'!pip install -q (?!-c )(["\']gwgpu_jax)')
 
 
@@ -69,6 +82,8 @@ def patch_install(src: str) -> tuple[str, int]:
     n += src.count("# Use Colab's own GPU jax:") if not n else 0
     if n:
         src = _GWGPU_PIP.sub(rf'!pip install -q -c {CONSTRAINTS} \1', src)
+        if _TF2JAX_TAG not in src:
+            src = _MLGW_PIP_LINE.sub(lambda m: m.group(0) + _TF2JAX.format(ind=m.group("ind")), src, count=1)
         src = re.sub(r'GWgpu-jax\.git(@[\w./-]+)?"', f'GWgpu-jax.git@{INSTALL_BRANCH}"', src)
         src = re.sub(r'(OWNER, REPO, BRANCH = "saulo-albuquerque-phys", "GWgpu-jax", )"(acceptance_walk_sampler|py312_modern_jax)"',
                      rf'\1"{INSTALL_BRANCH}"', src)
