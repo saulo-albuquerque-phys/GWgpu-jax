@@ -310,6 +310,29 @@ class GWgpu_jaxNestedSampler:
         """The per-particle log-likelihood closure (jit/vmap/grad-safe)."""
         return self._loglikelihood_fn
 
+    @classmethod
+    def from_loglikelihood(
+        cls,
+        loglikelihood_fn: Callable,
+        param_bounds:     dict,
+        priors:           dict | None = None,
+    ) -> "GWgpu_jaxNestedSampler":
+        """Nested slice sampler on a user-supplied log-likelihood.
+
+        ``loglikelihood_fn(particle_dict) -> scalar`` must be JAX-traceable
+        (jit/vmap-safe), e.g. a relative-binning or tc/phase-marginalised
+        likelihood. Priors are resolved from ``param_bounds`` / ``priors`` as in
+        the constructor; no network or waveform is needed.
+        """
+        self = cls.__new__(cls)
+        self.network, self.waveform_fn, self.gmst = None, None, None
+        self.param_bounds = dict(param_bounds)
+        self.fixed_params = {}
+        self.priors       = dict(priors or {})
+        self._prior_specs = resolve_priors(self.param_bounds, self.priors)
+        self._loglikelihood_fn = loglikelihood_fn
+        return self
+
     # ── main loop ─────────────────────────────────────────────────────────────
 
     def run(

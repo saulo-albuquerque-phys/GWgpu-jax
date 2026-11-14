@@ -38,7 +38,7 @@ cells.append(md(
     ' target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>'))
 
 cells.append(md(r"""
-# GW170817 — mlgw_bns_jax + relative binning + acceptance-walk NS, **LVK-standard priors** (paper revision)
+# GW170817 — mlgw_bns_jax + relative binning + nested sampling, **LVK-standard priors** (paper revision)
 
 Revision of `examples/public_Parameter_Estimation_MLGW_BNS_JAX_GW170817_tc95_acceptance_walk.ipynb` for the
 referee's PE comments. Same surrogate (mlgw_bns_jax, a TEOBResumSPA surrogate), same tc/φ_c-marginalised
@@ -232,27 +232,48 @@ print({k: type(v).__name__ for k, v in resolve_priors(PARAM_BOUNDS, PRIORS).item
 cells.append(src_code(lambda s: "blackjax_ns_gw" in s and "custom_kernels" in s))
 
 cells.append(md(r"""
-## 7. Run the acceptance-walk sampler
+## 7. Run the nested sampler
 
-Same settings as the bilby reference: 1000 live points, 60 accepted steps per new point (maxmcmc
-5000), stop at bilby's `dlogz < 0.1` ≡ `ln Z_live − ln Z < ln(e^0.1 − 1)`. gwjax replaces 500 points
-per (batched) iteration where dynesty replaces one.
+`SAMPLER = "nss"` (default): blackjax nested slice sampling with the settings used in romjax —
+5% of the live points replaced per iteration, 4 × dim inner slice steps, live points started from
+the prior, stop when `ln Z_live − ln Z < ln 0.1`.
+
+`SAMPLER = "acceptance_walk"`: the bilby-like differential-evolution walk (60 accepted steps per
+new point on average, maxmcmc 5000, stop at bilby's `dlogz < 0.1`). gwgpu_jax runs it with a fixed
+number of steps per chain, as bilby does. The walk shipped with the external kernel stops after a
+fixed number of *accepted* steps instead, which made the first two revision runs (14 Nov 2026)
+10–20% too narrow with ln Z about 4 too high.
 """))
 cells.append(code(r"""
-# NUM_DELETE = 100 (10% of the live points per iteration). With 500 (50%) the run of 2026-11-14 was
-# over-concentrated: posterior 10-20% narrower than bilby and ln Z 3.8 too high (check_sampler_consistency.py).
-NUM_LIVE, NUM_DELETE, N_TARGET, MAX_MCMC = 1000, 100, 60, 5000
-LOG_DLOGZ_TARGET = float(np.log(np.expm1(0.1)))
-SEED = 0
-sampler = gwgpu_jax.GWgpu_jaxAcceptanceWalkSampler.from_loglikelihood(
-    loglikelihood_fn=log_L_tp_marg, param_bounds=PARAM_BOUNDS, priors=PRIORS, periodic_params=PERIODIC)
+SAMPLER  = "nss"          # "nss" | "acceptance_walk"
+NUM_LIVE = 1000
+SEED     = 0
+D        = len(PARAM_BOUNDS)
 t0 = time.perf_counter()
-result = sampler.run(
-    rng_key=jax.random.PRNGKey(SEED), num_live=NUM_LIVE, n_target=N_TARGET, max_mcmc=MAX_MCMC,
-    num_delete=NUM_DELETE, max_iterations=20000, log_dlogz_target=LOG_DLOGZ_TARGET,
-    num_posterior_samples=10000, verbose=True)
+if SAMPLER == "nss":
+    NUM_DELETE, NUM_INNER_STEPS = NUM_LIVE // 20, 4 * D
+    N_TARGET = MAX_MCMC = None
+    LOG_DLOGZ_TARGET = float(np.log(0.1))
+    sampler = gwgpu_jax.GWgpu_jaxNestedSampler.from_loglikelihood(
+        loglikelihood_fn=log_L_tp_marg, param_bounds=PARAM_BOUNDS, priors=PRIORS)
+    result = sampler.run(
+        rng_key=jax.random.PRNGKey(SEED), num_live=NUM_LIVE, num_inner_steps=NUM_INNER_STEPS,
+        num_delete=NUM_DELETE, max_iterations=20000, log_dlogz_target=LOG_DLOGZ_TARGET,
+        num_posterior_samples=10000, verbose=True)
+else:
+    NUM_DELETE, N_TARGET, MAX_MCMC = 100, 60, 5000
+    NUM_INNER_STEPS = None
+    LOG_DLOGZ_TARGET = float(np.log(np.expm1(0.1)))
+    from gwgpu_jax.gwgpu_jax_acceptance_walk import WALK_RULE      # needs the fixed-length walk (Nov 2026)
+    print("acceptance-walk rule:", WALK_RULE)
+    sampler = gwgpu_jax.GWgpu_jaxAcceptanceWalkSampler.from_loglikelihood(
+        loglikelihood_fn=log_L_tp_marg, param_bounds=PARAM_BOUNDS, priors=PRIORS, periodic_params=PERIODIC)
+    result = sampler.run(
+        rng_key=jax.random.PRNGKey(SEED), num_live=NUM_LIVE, n_target=N_TARGET, max_mcmc=MAX_MCMC,
+        num_delete=NUM_DELETE, max_iterations=20000, log_dlogz_target=LOG_DLOGZ_TARGET,
+        num_posterior_samples=10000, verbose=True)
 elapsed = time.perf_counter() - t0
-print(f"\nwall-clock {elapsed:.1f} s ({elapsed/60:.1f} min), {result.n_iterations} iterations, "
+print(f"\n{SAMPLER}: wall-clock {elapsed:.1f} s ({elapsed/60:.1f} min), {result.n_iterations} iterations, "
       f"log Z = {result.logZ:+.3f} ± {result.logZ_err:.3f}, ESS = {result.ess:.0f}")
 """))
 
@@ -260,7 +281,7 @@ cells.append(md("## 8. Save to Google Drive"))
 cells.append(code(r"""
 import datetime, pandas as pd
 RUN_DIR = (f"/content/drive/MyDrive/gwjax_referee/gw170817_mlgw_bns_lvkpriors/"
-           f"{datetime.datetime.now():%Y%m%d_%H%M%S}_{PSD_MODE}_{SPIN_PRIOR}spin")
+           f"{datetime.datetime.now():%Y%m%d_%H%M%S}_{PSD_MODE}_{SPIN_PRIOR}spin_{SAMPLER}")
 os.makedirs(RUN_DIR, exist_ok=True)
 post = {k: np.asarray(v) for k, v in result.posterior_samples.items()}
 m1 = post["mc"] * (1 + post["q"]) ** 0.2 / post["q"] ** 0.6
@@ -283,7 +304,8 @@ json.dump(dict(
                 waveform="mlgw_bns_jax default (TEOBResumSPA surrogate), (2,2)",
                 likelihood="relative binning, tc + phi_c marginalised", fiducial=FIDUCIAL, tc_spacing=TC_SPACING,
                 param_bounds=PARAM_BOUNDS, priors=PRIORS, periodic=list(PERIODIC), spin_prior=SPIN_PRIOR,
-                sampler="acceptance-walk NS", num_live=NUM_LIVE, num_delete=NUM_DELETE, n_target=N_TARGET,
+                sampler={"nss": "nested slice sampling (blackjax NSS)", "acceptance_walk": "acceptance-walk NS, fixed-length walk"}[SAMPLER],
+                num_inner_steps=NUM_INNER_STEPS, num_live=NUM_LIVE, num_delete=NUM_DELETE, n_target=N_TARGET,
                 max_mcmc=MAX_MCMC, log_dlogz_target=LOG_DLOGZ_TARGET, seed=SEED,
                 gwgpu_jax_version=getattr(gwgpu_jax, "__version__", "?"), device=str(jax.devices()[0]))),
     open(f"{RUN_DIR}/result.json", "w"), indent=2, default=str)

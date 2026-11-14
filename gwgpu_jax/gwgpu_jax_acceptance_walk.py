@@ -126,19 +126,102 @@ def _candidate_src_dirs() -> list[str]:
 def import_custom_kernels():
     """Import and return the external ``custom_kernels`` module.
 
+    Unless ``GWJAX_ACCEPTANCE_WALK_UPSTREAM_WALK=1`` is set, the module's inner
+    MCMC walk is replaced by :func:`fixed_length_de_walk` (see there for why).
+
     Raises a helpful :class:`ModuleNotFoundError` (with fetch instructions) if
     the kernel package cannot be located.
     """
+    ck = None
     try:
-        return importlib.import_module("custom_kernels")
+        ck = importlib.import_module("custom_kernels")
     except ModuleNotFoundError:
-        pass
-    for src in _candidate_src_dirs():
-        if os.path.isdir(os.path.join(src, "custom_kernels")):
-            if src not in sys.path:
-                sys.path.insert(0, src)
-            return importlib.import_module("custom_kernels")
-    raise ModuleNotFoundError(_FETCH_HINT)
+        for src in _candidate_src_dirs():
+            if os.path.isdir(os.path.join(src, "custom_kernels")):
+                if src not in sys.path:
+                    sys.path.insert(0, src)
+                ck = importlib.import_module("custom_kernels")
+                break
+    if ck is None:
+        raise ModuleNotFoundError(_FETCH_HINT)
+    if os.environ.get("GWJAX_ACCEPTANCE_WALK_UPSTREAM_WALK", "") != "1":
+        _install_fixed_length_walk()
+    return ck
+
+
+# ── Inner MCMC walk with bilby's stopping rule ────────────────────────────────
+
+WALK_RULE = "fixed number of steps (bilby)"
+
+
+def fixed_length_de_walk(rng_key, state, logprior_fn, loglikelihood_fn, loglikelihood_0,
+                         params, stepper_fn, num_survivors, max_mcmc=5000):
+    """Constrained differential-evolution random walk of a FIXED number of steps.
+
+    This is bilby's acceptance-walk rule: every chain of an iteration takes the
+    same number of steps, ``params.num_walks`` (capped at ``max_mcmc``), and
+    that number is only *tuned* between iterations so that about ``n_target``
+    of the steps are accepted.
+
+    Why gwgpu_jax does not use the walk shipped in
+    ``custom_kernels.acceptance_walk_improved``: that one stops each chain as
+    soon as ``num_walks`` proposals have been *accepted*. A chain observed at
+    its k-th acceptance is a sample of the jump chain, whose stationary density
+    is the target times the local acceptance probability, so new live points
+    come out too concentrated (interior of the likelihood contour, away from
+    prior edges). Measured Nov 2026: 6-D Gaussian toy, ln Z +2.6 too high and
+    posterior widths x0.90 (this walk: -0.03 +- 0.06, x1.00); GW170817, ln BF
+    +3.8..4.4 and widths x0.78-0.90 relative to bilby/dynesty.
+
+    Same call signature and return types as the function it replaces. One step:
+    pick two distinct points among the ``num_survivors`` highest-likelihood live
+    points, move along their difference (scaled by ``scale * Gamma(4)/4`` with
+    probability ``mix``, otherwise by 1), and accept if the proposal is inside
+    the unit cube and above the likelihood threshold. Out-of-cube proposals
+    count as rejected steps, as in bilby.
+    """
+    from blackjax.ns.base import PartitionedState
+    info_cls = importlib.import_module("custom_kernels.acceptance_walk_improved").DEWalkInfo
+
+    n_steps = jnp.minimum(params.num_walks, max_mcmc)
+    _, best = jax.lax.top_k(params.loglikelihoods, num_survivors)
+
+    def one_step(carry):
+        key, pos, logp, logl, n_acc, n_eval, i = carry
+        key, k_a, k_b, k_kind, k_len = jax.random.split(key, 5)
+        ia = jax.random.randint(k_a, (), 0, num_survivors)
+        ib = jax.random.randint(k_b, (), 0, num_survivors - 1)
+        ib = jnp.where(ib >= ia, ib + 1, ib)                      # ib != ia
+        diff = jax.tree_util.tree_map(lambda x: x[best[ia]] - x[best[ib]], params.live_points)
+        length = jnp.where(jax.random.uniform(k_kind) < params.mix,
+                           params.scale * jax.random.gamma(k_len, 4.0) * 0.25, 1.0)
+        prop = stepper_fn(pos, diff, length)
+        prop_logp = logprior_fn(prop)
+        inside = jnp.isfinite(prop_logp)
+        prop_logl = jnp.where(inside, loglikelihood_fn(prop), -jnp.inf)
+        accept = prop_logl > loglikelihood_0
+        pos = jax.tree_util.tree_map(lambda new, old: jnp.where(accept, new, old), prop, pos)
+        return (key, pos, jnp.where(accept, prop_logp, logp), jnp.where(accept, prop_logl, logl),
+                n_acc + accept.astype(jnp.int32), n_eval + inside.astype(jnp.int32), i + 1)
+
+    zero = jnp.array(0, dtype=jnp.int32)
+    _, pos, logp, logl, n_acc, n_eval, n_done = jax.lax.while_loop(
+        lambda c: c[-1] < n_steps, one_step,
+        (rng_key, state.position, state.logprior, state.loglikelihood, zero, zero, zero))
+    return (PartitionedState(position=pos, logprior=logp, loglikelihood=logl),
+            info_cls(n_accept=n_acc, walks_completed=n_done, n_likelihood_evals=n_eval, total_proposals=n_done))
+
+
+def _install_fixed_length_walk() -> None:
+    """Point ``custom_kernels``' sampler factory at :func:`fixed_length_de_walk`.
+
+    The factory looks its walk up by name (``de_rwalk_scan_unit_cube``) in its
+    own module when it is called, so rebinding that name is enough.
+    """
+    mod = importlib.import_module("custom_kernels.acceptance_walk_improved")
+    if getattr(mod, "de_rwalk_scan_unit_cube", None) is not fixed_length_de_walk:
+        mod._upstream_de_rwalk_scan_unit_cube = mod.de_rwalk_scan_unit_cube
+        mod.de_rwalk_scan_unit_cube = fixed_length_de_walk
 
 
 # ── Prior transform (unit cube -> physical) built from gwjax prior specs ───────
