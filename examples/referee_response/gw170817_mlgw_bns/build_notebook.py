@@ -235,7 +235,8 @@ cells.append(md(r"""
 ## 7. Run the nested sampler
 
 `SAMPLER = "nss"` (default): blackjax nested slice sampling with the settings used in romjax —
-5% of the live points replaced per iteration, 4 × dim inner slice steps, live points started from
+5% of the live points replaced per iteration, 120 inner slice steps (4 × dim = 44 is the faster
+default there; 120 is what its P-P rerun uses), live points started from
 the prior, stop when `ln Z_live − ln Z < ln 0.1`.
 
 `SAMPLER = "acceptance_walk"`: the bilby-like differential-evolution walk (60 accepted steps per
@@ -251,7 +252,8 @@ SEED     = 0
 D        = len(PARAM_BOUNDS)
 t0 = time.perf_counter()
 if SAMPLER == "nss":
-    NUM_DELETE, NUM_INNER_STEPS = NUM_LIVE // 20, 4 * D
+    # 120 inner slice steps, as in the romjax P-P rerun (eca705c); 4 * D = 44 is the faster romjax default.
+    NUM_DELETE, NUM_INNER_STEPS = NUM_LIVE // 20, 120
     N_TARGET = MAX_MCMC = None
     LOG_DLOGZ_TARGET = float(np.log(0.1))
     sampler = gwgpu_jax.GWgpu_jaxNestedSampler.from_loglikelihood(
