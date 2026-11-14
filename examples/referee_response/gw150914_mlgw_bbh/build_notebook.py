@@ -73,7 +73,7 @@ the referee's PE comments. Same data, likelihood and surrogate; differences:
 | χ₁, χ₂ | U(−0.4, 0.4) | LVK **AlignedSpin**: isotropic spins, \\|a\\| ≤ 0.9 (surrogate limit) |
 | d_L [Mpc] | ∝ d² on [150, 700] | ∝ d² on [50, 2000] |
 | PSD | off-source median Welch, 32 s ending 8 s before trigger, 4 s Hann segments (15 periodograms) | `PSD_MODE`: `"lvk_welch"` 128 s, 4 s segments (63 periodograms, default) or `"paper"` |
-| sampler | n_target 100, maxmcmc 1200, num_delete 100, stop Δln Z < e⁻³ | n_target 60, maxmcmc 5000, num_delete 1000, stop ≡ bilby dlogz < 0.1 |
+| sampler | n_target 100, maxmcmc 1200, num_delete 100, stop Δln Z < e⁻³ | nlive 1000, n_target 60, maxmcmc 5000, num_delete 100, fixed-length walk, stop ≡ bilby dlogz < 0.1 |
 
 Sampler: **acceptance-walk nested sampling** (bilby/dynesty kernel of Prathaban et al. 2025, validated
 against bilby at the JSD noise floor) — not NSS. Not changed here: (2,2) mode only (as the paper), no
@@ -184,14 +184,20 @@ cells[i_run_md] = md("""
 
 Settings of the bilby-validated acceptance-walk study (Prathaban et al. 2025): `n_target = 60` accepted
 steps per new point with up to `max_mcmc = 5000` proposals (the old cap of 1200 clipped the chains at the
-~2–3% acceptance rates typical here), `num_delete = 0.5·num_live`, and the stopping rule equivalent to
+~2–3% acceptance rates typical here), 1000 live points with `num_delete = 0.1·num_live`, a fixed number
+of steps per chain (bilby's rule; gwgpu_jax ≥ Nov 2026), and the stopping rule equivalent to
 bilby's `dlogz < 0.1`, i.e. `ln Z_live − ln Z < ln(e^0.1 − 1)`. Expect the wider prior to need more
 iterations than the published run.
 """)
 cells[i_run] = code('''
 import numpy as np
-NUM_LIVE         = 2000
-NUM_DELETE       = 1000                          # 0.5 * NUM_LIVE
+# Same settings as the validated GW170817 run and the bilby reference: 1000 live points, 10% of them
+# replaced per iteration. The walk must be gwgpu_jax's fixed-length one (bilby's rule): the import
+# below fails on a gwgpu_jax older than Nov 2026, whose runs were ~10-20% too narrow.
+from gwgpu_jax.gwgpu_jax_acceptance_walk import WALK_RULE
+print("acceptance-walk rule:", WALK_RULE)
+NUM_LIVE         = 1000
+NUM_DELETE       = 100                           # 0.1 * NUM_LIVE
 N_TARGET         = 60
 MAX_MCMC         = 5000
 LOG_DLOGZ_TARGET = float(np.log(np.expm1(0.1)))  # = -2.252, bilby dlogz < 0.1
@@ -239,7 +245,7 @@ json.dump(dict(
                 psd_mode=PSD_MODE, psd_segment_duration=PSD_SEGMENT_DURATION, psd_offset=PSD_OFFSET,
                 waveform="mlgw_bbh_jax model_4 (SEOBNRv5HM), (2,2) mode", mlgw_final_time=MLGW_FINAL_TIME,
                 param_bounds=PARAM_BOUNDS, priors=PRIORS, periodic=["phi_c", "ra", "psi"],
-                sampler="acceptance-walk NS", num_live=NUM_LIVE, num_delete=NUM_DELETE,
+                sampler="acceptance-walk NS, " + WALK_RULE, num_live=NUM_LIVE, num_delete=NUM_DELETE,
                 n_target=N_TARGET, max_mcmc=MAX_MCMC, log_dlogz_target=LOG_DLOGZ_TARGET, seed=SEED,
                 gwgpu_jax_version=getattr(gwgpu_jax, "__version__", "?")),
 ), open(f"{RUN_DIR}/result.json", "w"), indent=2, default=list)
