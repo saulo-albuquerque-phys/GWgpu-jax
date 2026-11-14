@@ -63,8 +63,9 @@ arXiv:2402.10797) if you use this sampler.
 
 ### Requirements
 
-- **Python 3.11** (only) — the `mlgw` extra requires TensorFlow < 2.16, and no
-  such wheel exists for 3.12; 3.11 is also the version Google Colab provides
+- **Python 3.11 or 3.12** — the `mlgw` extra installs TensorFlow < 2.16 (Keras 2)
+  on 3.11 and TensorFlow ≥ 2.16 (Keras 3) on 3.12 (current Google Colab); both give
+  bit-identical mlgw waveforms. Python 3.13 is not supported (no jaxlib 0.4.x wheels).
 - Git
 
 ### Install from GitHub (pip — recommended)
