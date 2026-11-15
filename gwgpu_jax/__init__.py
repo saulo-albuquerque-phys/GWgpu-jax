@@ -21,6 +21,9 @@ gwpy) are loaded on first access via PEP 562 ``__getattr__`` so that
   * ``gwgpu_jax.build_ripplegw_waveform_fn``  → ripplegw helper for the sampler
   * ``gwgpu_jax.compat``                      → :mod:`gwgpu_jax.gwgpu_jax_compatibility`
                                             (gwpy real-data ingest)
+  * ``gwgpu_jax.jim_interface``               → :mod:`gwgpu_jax.gwgpu_jax_jim_interface`
+                                            (mlgw_bbh / mlgw_bns as Jim waveforms;
+                                            needs a Jim environment)
 
 For example, ``gwgpu_jax.GWgpu_jaxWaveformGenerator("mlgw_bbh_jax")`` triggers
 TensorFlow only at that point, not at ``import gwgpu_jax``.
@@ -106,6 +109,11 @@ _LAZY = {
     "GWgpu_jaxWaveformGenerator":      ("gwgpu_jax.gwgpu_jax_waveformgenerator", "GWgpu_jaxWaveformGenerator"),
     "build_ripplegw_waveform_fn":  ("gwgpu_jax.gwgpu_jax_samplers",          "build_ripplegw_waveform_fn"),
     "compat":                      ("gwgpu_jax.gwgpu_jax_compatibility",     None),
+    # Jim (jimgw >= 0.6) adapters for the mlgw surrogates. Not in __all__:
+    # they need ripplegw >= 0.5, which a plain GWgpu_jax environment lacks.
+    "jim_interface":               ("gwgpu_jax.gwgpu_jax_jim_interface",     None),
+    "MLGWBBHJimWaveform":          ("gwgpu_jax.gwgpu_jax_jim_interface",     "MLGWBBHJimWaveform"),
+    "MLGWBNSJimWaveform":          ("gwgpu_jax.gwgpu_jax_jim_interface",     "MLGWBNSJimWaveform"),
 }
 
 
