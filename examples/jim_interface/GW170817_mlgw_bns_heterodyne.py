@@ -117,6 +117,9 @@ likelihood = HeterodynedTransientLikelihoodFD(
     ifos,
     waveform=waveform,
     n_bins=1000,
+    # CMA-ES search for the reference waveform (Jim's defaults unless SMOKE)
+    optimizer_popsize=20 if SMOKE else 500,
+    optimizer_n_steps=5 if SMOKE else 1000,
     f_min=fmin,
     f_max=fmax,
     prior=prior,
