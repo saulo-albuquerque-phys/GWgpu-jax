@@ -16,9 +16,13 @@ Design (each choice is what makes the P-P test strictly valid):
   * Gaussian noise coloured by the design PSD, a fresh seed per injection;
   * the signal is injected with the sampler's own tc + dt_ifo convention
     (network.project_waveform alone would leave tc unrecoverable);
-  * sampler settings follow the bilby-validated acceptance-walk injection study
-    (Prathaban et al. 2025): nlive 1400, num_delete 700, n_target 60,
-    maxmcmc 5000, stop at logZ_live - logZ < ln(0.001).
+  * sampler settings are those of the paper's event runs, validated against
+    bilby/dynesty on GW170817 and GW150914 (Nov 2026): nlive 1000, num_delete 100,
+    n_target 60, maxmcmc 5000, stop at bilby's dlogz = 0.1, i.e.
+    logZ_live - logZ < ln(e^0.1 - 1); the final live points enter the posterior.
+    The walk runs a FIXED number of steps (bilby's rule; gwgpu_jax >= 9457ebf) — the
+    external kernel's stop-after-n-accepted rule biases posteriors narrow, so the
+    runner refuses to start with it.
 
 Priors are WIDE, set by the surrogate's training range (model_4 README:
 q in [1,10], |chi| <= 0.9, t_min = 2 s/M_sun) rather than by GW150914 — this also
@@ -76,13 +80,14 @@ ap.add_argument("--q", type=float, nargs=2, default=(0.125, 1.0))
 ap.add_argument("--chi", type=float, nargs=2, default=(-0.9, 0.9))
 ap.add_argument("--distance", type=float, nargs=2, default=(50.0, 500.0))
 ap.add_argument("--tc-halfwidth", type=float, default=0.1)
-# sampler (Prathaban et al. 2025 injection-study settings)
-ap.add_argument("--nlive", type=int, default=1400)
-ap.add_argument("--num-delete", type=int, default=700)
+# sampler (settings of the paper's event runs, validated against bilby)
+ap.add_argument("--nlive", type=int, default=1000)
+ap.add_argument("--num-delete", type=int, default=100)
 ap.add_argument("--n-target", type=int, default=60)
 ap.add_argument("--max-mcmc", type=int, default=5000)
 ap.add_argument("--max-iters", type=int, default=20000)
-ap.add_argument("--log-dlogz", type=float, default=float(np.log(1e-3)))
+ap.add_argument("--log-dlogz", type=float, default=float(np.log(np.expm1(0.1))),
+                help="stop when logZ_live - logZ < this (default: bilby dlogz = 0.1)")
 ap.add_argument("--num-posterior", type=int, default=4000)
 # seeds
 ap.add_argument("--inj-seed", type=int, default=20261104)
@@ -97,6 +102,15 @@ import jax.numpy as jnp
 
 import gwgpu_jax
 from gwgpu_jax.mlgw_jax.mlgw_bbh_jax_waveform_generator import MLGWBBHGenerator
+try:
+    from gwgpu_jax.gwgpu_jax_acceptance_walk import WALK_RULE
+except ImportError:
+    raise SystemExit("this gwgpu_jax predates the acceptance-walk fix (9457ebf): its walk stops after "
+                     "n accepted steps and gives posteriors that are too narrow. Reinstall gwgpu_jax.")
+import os
+if os.environ.get("GWJAX_ACCEPTANCE_WALK_UPSTREAM_WALK") == "1":
+    raise SystemExit("GWJAX_ACCEPTANCE_WALK_UPSTREAM_WALK=1 selects the biased upstream walk - unset it.")
+print("acceptance-walk rule:", WALK_RULE)
 
 RUN_DIR = Path(args.run_dir)
 RUN_DIR.mkdir(parents=True, exist_ok=True)
@@ -168,13 +182,14 @@ NAMES = list(PARAM_BOUNDS)
 cfg = dict(vars(args), modes=args.modes, param_bounds=PARAM_BOUNDS, priors=PRIORS,
            waveform="mlgw_bbh_jax model_4 (SEOBNRv5HM)", tc_center=TC_CENTER,
            mlgw_final_time=MLGW_FINAL_TIME,
-           tukey=(TUKEY_ALPHA_LEFT, TUKEY_ALPHA_RIGHT),
+           tukey=(TUKEY_ALPHA_LEFT, TUKEY_ALPHA_RIGHT), walk_rule=WALK_RULE,
            gwgpu_jax_version=getattr(gwgpu_jax, "__version__", "?"))
 cfg_file = RUN_DIR / "config.json"
 if cfg_file.exists():
     old = json.load(open(cfg_file))
     for k in ("param_bounds", "priors", "inj_seed", "modes", "duration", "f_min", "f_max",
-              "mlgw_final_time"):
+              "mlgw_final_time", "walk_rule", "nlive", "num_delete", "n_target", "max_mcmc",
+              "log_dlogz"):
         if json.dumps(old.get(k)) != json.dumps(cfg.get(k)):
             raise SystemExit(f"config mismatch on {k!r} vs existing {cfg_file}: "
                              f"{old.get(k)} != {cfg.get(k)} — use a new --run-dir")
