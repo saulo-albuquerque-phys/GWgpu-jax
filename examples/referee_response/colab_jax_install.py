@@ -127,6 +127,12 @@ print(f"✓ mlgw_bbh waveforms match the reference (jax {{_jax.__version__}}, TF
 del _g
 ''',
 }
+# all 7 modes of model_4 (22 21 32 33 43 44 55): same check with modes=None and its own reference
+_CHECK["bbh_hm"] = (_CHECK["bbh"]
+                    .replace("mlgw_bbh_jax model_4 vs", "mlgw_bbh_jax model_4, all 7 modes, vs")
+                    .replace("modes=(2, 2)", "modes=None")
+                    .replace("mlgw_bbh waveforms match", "mlgw_bbh 7-mode waveforms match"))
+assert "modes=None" in _CHECK["bbh_hm"]
 _CHECK_TAG = "# Waveform self-check:"
 
 
@@ -161,7 +167,7 @@ def patch_cells(cells, check: str | None = None, after: str | None = None) -> in
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("notebooks", nargs="+")
-    ap.add_argument("--check", choices=["bbh", "bns"])
+    ap.add_argument("--check", choices=["bbh", "bbh_hm", "bns"])
     ap.add_argument("--after", help="insert the self-check after the first code cell containing this")
     a = ap.parse_args()
     for path in a.notebooks:

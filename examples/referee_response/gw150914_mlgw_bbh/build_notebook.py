@@ -2,14 +2,18 @@
 """Generate COLAB_GW150914_mlgw_bbh_LVKpriors.ipynb from the public GW150914 notebook.
 
 Re-run after changing the public notebook so the two stay in sync:
-    python build_notebook.py
+    python build_notebook.py          # (2,2) mode only, as the paper
+    python build_notebook.py --hm     # all 7 modes of model_4 -> ..._LVKpriors_HM.ipynb
 """
 import json
+import sys
 from pathlib import Path
+
+HM = "--hm" in sys.argv[1:]
 
 HERE = Path(__file__).resolve().parent
 SRC = HERE.parents[1] / "public_Parameter_Estimation_mlgw_bbh_GW150914_acceptance_walk.ipynb"
-OUT = HERE / "COLAB_GW150914_mlgw_bbh_LVKpriors.ipynb"
+OUT = HERE / ("COLAB_GW150914_mlgw_bbh_LVKpriors_HM.ipynb" if HM else "COLAB_GW150914_mlgw_bbh_LVKpriors.ipynb")
 
 nb = json.load(open(SRC))
 cells = nb["cells"]
@@ -57,7 +61,7 @@ gwtc_plot = [i for i, c in enumerate(cells) if c["cell_type"] == "code"
 # ── title / badge ────────────────────────────────────────────────────────────
 cells[i_badge] = md('<a href="https://colab.research.google.com/github/saulo-albuquerque-phys/GWgpu-jax/blob/'
                     'acceptance_walk_sampler/examples/referee_response/gw150914_mlgw_bbh/'
-                    'COLAB_GW150914_mlgw_bbh_LVKpriors.ipynb" target="_parent">'
+                    f'{OUT.name}" target="_parent">'
                     '<img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>')
 cells[i_title] = md("""
 # GW150914 — mlgw_bbh_jax (SEOBNRv5HM) + acceptance-walk NS, **LVK-standard priors** (paper revision)
@@ -82,6 +86,15 @@ calibration marginalisation, Euclidean d² rather than uniform-in-comoving-volum
 Results are written to Google Drive (`RUN_DIR`): posterior samples (`.npz` + `.txt`), `result.json` with
 the full configuration, and the GWTC-2.1 JS-divergence table.
 """)
+
+if HM:
+    replace_once(i_title, "# GW150914 — mlgw_bbh_jax (SEOBNRv5HM) + acceptance-walk NS, **LVK-standard priors** (paper revision)",
+                 "# GW150914 — mlgw_bbh_jax (SEOBNRv5HM, **all 7 modes**) + acceptance-walk NS, LVK-standard priors")
+    replace_once(i_title, "Not changed here: (2,2) mode only (as the paper), no",
+                 "**Higher modes:** this notebook uses all 7 modes of the surrogate — (2,2), (2,1), (3,2), (3,3), (4,3),\n"
+                 "(4,4), (5,5) and their m < 0 partners — instead of the paper's (2,2) only; everything else is\n"
+                 "identical to `COLAB_GW150914_mlgw_bbh_LVKpriors.ipynb`. The waveform costs ~4× more, so expect a\n"
+                 "few hours on an A100. Not changed here: no")
 
 # ── PSD switch ───────────────────────────────────────────────────────────────
 cells[i_psd] = code('''
@@ -118,6 +131,12 @@ replace_once(i_wf,
     "MLGW_FINAL_TIME = 0.1    # s of post-merger time kept (whole ringdown; 0.01 truncated it, MM~3e-3)",
     "MLGW_FINAL_TIME = 0.12   # s of post-merger time kept: covers mlgw's native end (0.00052 s/Msun x M_tot)\n"
     "                         # up to M_tot ~ 230 Msun, i.e. the whole wide prior. 0.01 s truncated the ringdown.")
+
+if HM:
+    replace_once(i_wf, "waveform_fn = build_mlgw_bbh_waveform_fn(grid, modes=(2, 2))",
+                 "MODES = None   # None = all 7 modes of model_4: 22 21 32 33 43 44 55 (the paper run used (2, 2))\n"
+                 "waveform_fn = build_mlgw_bbh_waveform_fn(grid, modes=MODES)")
+    replace_once(i_wf, "(SEOBNRv5HM, model_4, (2,2) mode) loaded", "(SEOBNRv5HM, model_4, all 7 modes) loaded")
 
 # ── priors ───────────────────────────────────────────────────────────────────
 cells[i_prior_md] = md("""
@@ -230,7 +249,7 @@ import numpy as np
 from google.colab import drive
 if not os.path.ismount("/content/drive"):
     drive.mount("/content/drive")
-RUN_DIR = f"/content/drive/MyDrive/gwjax_referee/gw150914_mlgw_bbh_lvkpriors/{datetime.datetime.now():%Y%m%d_%H%M%S}_{PSD_MODE}"
+RUN_DIR = f"/content/drive/MyDrive/gwjax_referee/gw150914_mlgw_bbh_lvkpriors/{datetime.datetime.now():%Y%m%d_%H%M%S}_{PSD_MODE}__HMSUFFIX__"
 os.makedirs(RUN_DIR, exist_ok=True)
 
 post = {k: np.asarray(v) for k, v in result.posterior_samples.items()}
@@ -243,7 +262,7 @@ json.dump(dict(
     config=dict(event="GW150914", detectors=[i.name for i in network.interferometers],
                 duration=grid.duration, sampling_rate=grid.sampling_rate, f_min=20.0, f_max=1024.0,
                 psd_mode=PSD_MODE, psd_segment_duration=PSD_SEGMENT_DURATION, psd_offset=PSD_OFFSET,
-                waveform="mlgw_bbh_jax model_4 (SEOBNRv5HM), (2,2) mode", mlgw_final_time=MLGW_FINAL_TIME,
+                waveform="mlgw_bbh_jax model_4 (SEOBNRv5HM), __MODELABEL__", mlgw_final_time=MLGW_FINAL_TIME,
                 param_bounds=PARAM_BOUNDS, priors=PRIORS, periodic=["phi_c", "ra", "psi"],
                 sampler="acceptance-walk NS, " + WALK_RULE, num_live=NUM_LIVE, num_delete=NUM_DELETE,
                 n_target=N_TARGET, max_mcmc=MAX_MCMC, log_dlogz_target=LOG_DLOGZ_TARGET, seed=SEED,
@@ -253,6 +272,11 @@ import pandas as pd
 pd.DataFrame(post).to_csv(f"{RUN_DIR}/posterior_samples.txt", sep="\\t", index=False)
 print("saved to", RUN_DIR)
 ''')
+
+save_cell["source"] = ("".join(save_cell["source"])
+                       .replace("__HMSUFFIX__", "_HM" if HM else "")
+                       .replace("__MODELABEL__", "all 7 modes (22 21 32 33 43 44 55)" if HM else "(2,2) mode")
+                       ).splitlines(True)
 
 corner_cell = code('''
 import corner, matplotlib.pyplot as plt
@@ -373,6 +397,6 @@ nb["cells"] = new_cells
 import sys as _sys
 _sys.path.insert(0, str(HERE.parent))
 from colab_jax_install import patch_cells   # Colab install cell (keep Colab jax) + waveform self-check
-assert patch_cells(nb["cells"], check="bbh", after="MLGW-JAX.git") == 1, "jax install cell not found"
+assert patch_cells(nb["cells"], check="bbh_hm" if HM else "bbh", after="MLGW-JAX.git") == 1, "jax install cell not found"
 json.dump(nb, open(OUT, "w"), indent=1, ensure_ascii=False)
 print(f"wrote {OUT.name}: {len(new_cells)} cells")
