@@ -9,14 +9,16 @@ Reports, as in the LVK/bilby P-P convention (e.g. Romero-Shaw et al. 2020):
     with 1/2/3-sigma binomial bands;
   * per-parameter KS p-value against U(0,1) and Fisher-combined p-value;
   * a derived chi_eff curve, recomputed from the stored posteriors
-    (shows the best-measured spin combination is calibrated too).
+    (shows the best-measured spin combination is calibrated too); with --params also the
+    derived m1, m2, mtot.
 
     python make_pp_plot.py --run-dir pp_mlgw_bbh_run [--out pp_plot.pdf]
 
-Paper figure (physical parameters only; chi_eff replaces chi_1, chi_2; nuisance t_c, phi_c left out):
+Paper figure (physical parameters only; component masses m1, m2 and chi_eff derived from the
+sampled mc, q, chi_1, chi_2; nuisance t_c, phi_c left out):
 
     python make_pp_plot.py --run-dir pp_mlgw_bbh_fixedwalk \
-        --params mc q chi_eff distance inclination ra dec psi --out pp_mlgw_bbh_fixedwalk/pp_plot_physical.pdf
+        --params m1 m2 q chi_eff distance inclination ra dec psi --out pp_mlgw_bbh_fixedwalk/pp_plot_physical.pdf
 
 With --params the curves and the Fisher-combined p-value use exactly those parameters, and the
 summary goes to <out stem>_summary.json.
@@ -52,25 +54,39 @@ LABELS = {"mc": r"$\mathcal{M}_c$", "Mc": r"$\mathcal{M}_c$", "q": r"$q$",
           "chi_1": r"$\chi_1$", "chi_2": r"$\chi_2$", "distance": r"$d_L$",
           "inclination": r"$\theta_{JN}$", "ra": r"$\alpha$", "dec": r"$\delta$",
           "psi": r"$\psi$", "phi_c": r"$\phi_c$", "tc": r"$t_c$",
-          "chi_eff": r"$\chi_{\rm eff}$"}
+          "chi_eff": r"$\chi_{\rm eff}$", "m1": r"$m_1$", "m2": r"$m_2$", "mtot": r"$M$"}
 
 pvals = {n: np.array([r["p_values"][n] for r in recs]) for n in names}
 
-# derived chi_eff = (m1 chi1 + m2 chi2)/(m1+m2) = (chi1 + q chi2)/(1+q), q = m2/m1
+# derived parameters, recomputed from the stored posteriors (q = m2/m1 <= 1):
+#   chi_eff = (chi1 + q chi2)/(1+q);  m1 = Mc (1+q)^0.2 / q^0.6;  m2 = q m1;  M = m1 + m2
+def _derived(d, qn):
+    q = d[qn]
+    out = {}
+    if "chi_1" in d and "chi_2" in d:
+        out["chi_eff"] = (d["chi_1"] + q * d["chi_2"]) / (1 + q)
+    if "mc" in d:
+        m1 = d["mc"] * (1 + q) ** 0.2 / q ** 0.6
+        out.update(m1=m1, m2=q * m1, mtot=m1 * (1 + q))
+    return out
+
+
 qn = "q" if "q" in names else None
-if qn and "chi_1" in names and not args.no_chi_eff:
-    pe = []
+if qn and not args.no_chi_eff:
+    pe = {}
     for r in recs:
         f = run / f"inj_{r['index']:03d}" / "posterior_samples.npz"
         if not f.exists():
             pe = None
             break
-        p = np.load(f)
-        ce = (p["chi_1"] + p[qn] * p["chi_2"]) / (1 + p[qn])
-        t = r["truth"]
-        pe.append(np.mean(ce < (t["chi_1"] + t[qn] * t["chi_2"]) / (1 + t[qn])))
-    if pe is not None:
-        pvals["chi_eff"] = np.array(pe)
+        post = _derived(np.load(f), qn)
+        tru = _derived({k: np.asarray(v) for k, v in r["truth"].items()}, qn)
+        for k in post:
+            pe.setdefault(k, []).append(np.mean(post[k] < tru[k]))
+    if pe:
+        if not args.params:      # default plot: only chi_eff, as before
+            pe = {k: v for k, v in pe.items() if k == "chi_eff"}
+        pvals.update({k: np.array(v) for k, v in pe.items()})
 
 if args.params:
     missing = [n for n in args.params if n not in pvals]
