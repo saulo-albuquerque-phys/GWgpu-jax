@@ -1,0 +1,28 @@
+{
+  "gw150914": {
+    "mismatch_median": 1.4559770389332982e-08,
+    "mismatch_max": 3.9768402348983045e-08,
+    "dlnL_median": -0.0014315576700028032,
+    "dlnL_std": 0.009620737333052473,
+    "dlnL_max_abs_dev": 0.033158668957185,
+    "ess_fraction": 0.9999074735872415,
+    "lnL_std_fp64": 1.9944449300990845,
+    "n_nan_waveforms": 0,
+    "n_nan_lnL": 0,
+    "n_waveforms": 50,
+    "n_lnL": 200
+  },
+  "gw170817": {
+    "mismatch_median": 0.010269309051677555,
+    "mismatch_max": 0.015962500490068865,
+    "dlnL_median": -0.7842300952761434,
+    "dlnL_std": 0.3151150095381408,
+    "dlnL_max_abs_dev": 1.0394369077985175,
+    "ess_fraction": 0.9134987997471989,
+    "lnL_std_fp64": 2.0617172063686358,
+    "n_nan_waveforms": 1,
+    "n_nan_lnL": 2,
+    "n_waveforms": 50,
+    "n_lnL": 200
+  }
+}
