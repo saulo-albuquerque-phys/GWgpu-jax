@@ -1,0 +1,103 @@
+{
+  "run_dir": "/content/drive/MyDrive/gwjax_referee/pp_mlgw_bbh_fixedwalk",
+  "n_inj": 100,
+  "start": 0,
+  "stop": 2,
+  "detectors": [
+    "H1",
+    "L1"
+  ],
+  "duration": 4.0,
+  "sampling_rate": 4096.0,
+  "f_min": 20.0,
+  "f_max": 1024.0,
+  "mlgw_final_time": 0.12,
+  "modes": "22",
+  "mc": [
+    15.0,
+    50.0
+  ],
+  "q": [
+    0.125,
+    1.0
+  ],
+  "chi": [
+    -0.9,
+    0.9
+  ],
+  "distance": [
+    50.0,
+    500.0
+  ],
+  "tc_halfwidth": 0.1,
+  "nlive": 1000,
+  "num_delete": 100,
+  "n_target": 60,
+  "max_mcmc": 5000,
+  "max_iters": 20000,
+  "log_dlogz": -2.2521684610440906,
+  "num_posterior": 4000,
+  "inj_seed": 20261104,
+  "noise_seed0": 1000,
+  "sampler_seed0": 7000,
+  "force": false,
+  "param_bounds": {
+    "mc": [
+      15.0,
+      50.0
+    ],
+    "q": [
+      0.125,
+      1.0
+    ],
+    "chi_1": [
+      -0.9,
+      0.9
+    ],
+    "chi_2": [
+      -0.9,
+      0.9
+    ],
+    "distance": [
+      50.0,
+      500.0
+    ],
+    "inclination": [
+      0.0,
+      3.141592653589793
+    ],
+    "ra": [
+      0.0,
+      6.283185307179586
+    ],
+    "dec": [
+      -1.5707963267948966,
+      1.5707963267948966
+    ],
+    "psi": [
+      0.0,
+      3.141592653589793
+    ],
+    "phi_c": [
+      0.0,
+      6.283185307179586
+    ],
+    "tc": [
+      3.4,
+      3.6
+    ]
+  },
+  "priors": {
+    "inclination": "sin",
+    "dec": "cos",
+    "distance": "volumetric"
+  },
+  "waveform": "mlgw_bbh_jax model_4 (SEOBNRv5HM)",
+  "tc_center": 3.5,
+  "tukey": [
+    0.2,
+    0.001
+  ],
+  "walk_rule": "fixed number of steps (bilby)",
+  "gwgpu_jax_version": "0.1.0"
+}
