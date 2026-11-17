@@ -75,10 +75,16 @@ def bench(name, fn, make_batch, batches):
     vf = jax.jit(jax.vmap(fn))
     for b in batches:
         P = make_batch(b)
-        t0 = time.perf_counter(); _sync(vf(P)); t_first = time.perf_counter() - t0
-        ts = []
-        for _ in range(args.repeats):
-            t0 = time.perf_counter(); _sync(vf(P)); ts.append(time.perf_counter() - t0)
+        try:
+            t0 = time.perf_counter(); _sync(vf(P)); t_first = time.perf_counter() - t0
+            ts = []
+            for _ in range(args.repeats):
+                t0 = time.perf_counter(); _sync(vf(P)); ts.append(time.perf_counter() - t0)
+        except Exception as e:                     # noqa: BLE001 -- typically GPU out of memory
+            msg = f"{type(e).__name__}: {str(e).splitlines()[0][:160]}"
+            out.setdefault("errors", {})[b] = msg
+            print(f"  {name:34s} batch {b:5d}: FAILED -- {msg}; larger batches skipped", flush=True)
+            break
         t = float(np.median(ts))
         out[b] = dict(first_call_s=t_first, compile_s=max(t_first - t, 0.0), call_s=t, per_eval_s=t / b)
         print(f"  {name:34s} batch {b:5d}: {1e6 * t / b:12.2f} us/eval   (call {t:.4f} s, first call incl. compile {t_first:.1f} s)", flush=True)
@@ -284,4 +290,5 @@ for w in args.what:
         raise SystemExit(f"unknown --what {w}")
     RES["results"][w]["profile_wall_s"] = time.perf_counter() - t0
     json.dump(RES, open(args.out, "w"), indent=2)
+    jax.clear_caches()          # free the previous event's executables (GPU memory) before the next one
 print("wrote", args.out)

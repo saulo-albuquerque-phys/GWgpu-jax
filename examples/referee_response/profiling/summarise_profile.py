@@ -20,8 +20,18 @@ ap.add_argument("--gw170817-calls", type=float, default=7460504)
 ap.add_argument("--out", default=None)
 a = ap.parse_args()
 
-P = [json.load(open(f)) for f in a.profiles]
 lab = lambda p: p["info"]["label"] or p["info"]["device"]
+# files with the same label (e.g. profile_gpu.json + profile_gpu_hm.json from a second GPU process)
+# are merged into one column; later files add the analyses the earlier ones lack
+P = []
+for f in a.profiles:
+    p = json.load(open(f))
+    same = next((q for q in P if lab(q) == lab(p)), None)
+    if same is None:
+        P.append(p)
+    else:
+        for w, r in p["results"].items():
+            same["results"].setdefault(w, r)
 
 
 def per_eval(stage, b):
@@ -29,13 +39,13 @@ def per_eval(stage, b):
         return stage[b]["per_eval_s"]
     if str(b) in stage:
         return stage[str(b)]["per_eval_s"]
-    ks = sorted(int(k) for k in stage)            # largest measured batch <= b
+    ks = sorted(int(k) for k in stage if str(k) != "errors")            # largest measured batch <= b
     k = max([x for x in ks if x <= b] or ks[:1])
     return stage[str(k)]["per_eval_s"] if str(k) in stage else stage[k]["per_eval_s"]
 
 
 def compile_s(stage):
-    v = stage.get(str(1), stage.get(1)) or next(iter(stage.values()))
+    v = stage.get(str(1), stage.get(1)) or next(v for k, v in stage.items() if k != "errors")
     return v["compile_s"]
 
 
