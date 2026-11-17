@@ -1,0 +1,269 @@
+{
+  "points": [
+    {
+      "theta": {
+        "m1": 39.0,
+        "m2": 32.0,
+        "chi1": 0.0,
+        "chi2": 0.0
+      },
+      "mismatch_sur_vs_tgt": 5.561989229374564e-05,
+      "time_offset_s": 1.1999999999999858e-05,
+      "params": {
+        "m1": {
+          "eps_autodiff_vs_target_fd": 0.05468594526485869,
+          "cos_autodiff_vs_target_fd": 0.9986066416155933,
+          "target_fd_convergence": 0.0021550448249780594,
+          "autodiff_vs_surrogate_fd": 0.002760038107628473
+        },
+        "m2": {
+          "eps_autodiff_vs_target_fd": 0.058339767061935166,
+          "cos_autodiff_vs_target_fd": 0.998399054651122,
+          "target_fd_convergence": 0.0016525344311499272,
+          "autodiff_vs_surrogate_fd": 0.002558260175915193
+        },
+        "chi1": {
+          "eps_autodiff_vs_target_fd": 0.03705210561784881,
+          "cos_autodiff_vs_target_fd": 0.999628808460656,
+          "target_fd_convergence": 0.001597541410314665,
+          "autodiff_vs_surrogate_fd": 0.00012358946005386755
+        },
+        "chi2": {
+          "eps_autodiff_vs_target_fd": 0.03937082180735368,
+          "cos_autodiff_vs_target_fd": 0.9995167120793914,
+          "target_fd_convergence": 0.0009720061711887382,
+          "autodiff_vs_surrogate_fd": 7.109454409802927e-05
+        }
+      },
+      "fisher_sigma_target": {
+        "m1": 28.912172485822886,
+        "m2": 26.02163188679482,
+        "chi1": 4.191766925429396,
+        "chi2": 5.566950427684746,
+        "mc": 1.78631105040803,
+        "q": 1.2747016741309867,
+        "chi_eff": 0.21848011657993457
+      },
+      "fisher_sigma_surrogate": {
+        "m1": 25.577191911790887,
+        "m2": 23.692915151967924,
+        "chi1": 3.6841038780538584,
+        "chi2": 4.986864600506508,
+        "mc": 1.8894768941351117,
+        "q": 1.1448711503950721,
+        "chi_eff": 0.2337372009676421
+      },
+      "fisher_sigma_ratio": {
+        "m1": 0.8846513323871698,
+        "m2": 0.9105084283354016,
+        "chi1": 0.8788904401397429,
+        "chi2": 0.8957982768638573,
+        "mc": 1.0577535719232753,
+        "q": 0.898148306877823,
+        "chi_eff": 1.0698328279320808
+      }
+    },
+    {
+      "theta": {
+        "m1": 39.0,
+        "m2": 32.0,
+        "chi1": 0.3,
+        "chi2": -0.3
+      },
+      "mismatch_sur_vs_tgt": 5.467187634311532e-05,
+      "time_offset_s": 4.999999999999796e-06,
+      "params": {
+        "m1": {
+          "eps_autodiff_vs_target_fd": 0.07314553808701106,
+          "cos_autodiff_vs_target_fd": 0.9973325400486556,
+          "target_fd_convergence": 0.0029844741704164557,
+          "autodiff_vs_surrogate_fd": 0.0023716475410511285
+        },
+        "m2": {
+          "eps_autodiff_vs_target_fd": 0.06297866124725768,
+          "cos_autodiff_vs_target_fd": 0.9980180276307313,
+          "target_fd_convergence": 0.0027966954185392858,
+          "autodiff_vs_surrogate_fd": 0.0029956209987704826
+        },
+        "chi1": {
+          "eps_autodiff_vs_target_fd": 0.02996357949258074,
+          "cos_autodiff_vs_target_fd": 0.9996996403826234,
+          "target_fd_convergence": 0.001341553882015953,
+          "autodiff_vs_surrogate_fd": 0.00012641987478324165
+        },
+        "chi2": {
+          "eps_autodiff_vs_target_fd": 0.11160061935148462,
+          "cos_autodiff_vs_target_fd": 0.9972531220951769,
+          "target_fd_convergence": 0.0009396994532281093,
+          "autodiff_vs_surrogate_fd": 7.21638653131336e-05
+        }
+      },
+      "fisher_sigma_target": {
+        "m1": 20.62669705799635,
+        "m2": 19.304536104009152,
+        "chi1": 1.4114083645474849,
+        "chi2": 2.3905614194198406,
+        "mc": 1.6992394919067153,
+        "q": 0.9279027341502291,
+        "chi_eff": 0.20276928408216574
+      },
+      "fisher_sigma_surrogate": {
+        "m1": 31.628506789928196,
+        "m2": 28.664121491908258,
+        "chi1": 2.0733982104502586,
+        "chi2": 3.582654619323244,
+        "mc": 1.9767849731847362,
+        "q": 1.3997932221308518,
+        "chi_eff": 0.2618155406371683
+      },
+      "fisher_sigma_ratio": {
+        "m1": 1.5333771907832803,
+        "m2": 1.4848386585138047,
+        "chi1": 1.4690278607743805,
+        "chi2": 1.4986666271024778,
+        "mc": 1.1633351170332014,
+        "q": 1.5085559839553428,
+        "chi_eff": 1.2911992160068777
+      }
+    },
+    {
+      "theta": {
+        "m1": 45.0,
+        "m2": 25.0,
+        "chi1": 0.2,
+        "chi2": 0.0
+      },
+      "mismatch_sur_vs_tgt": 9.059494059682205e-05,
+      "time_offset_s": 4.9e-05,
+      "params": {
+        "m1": {
+          "eps_autodiff_vs_target_fd": 0.05031279831218799,
+          "cos_autodiff_vs_target_fd": 0.9987631293986767,
+          "target_fd_convergence": 0.0022293359878444914,
+          "autodiff_vs_surrogate_fd": 0.0029630939516159605
+        },
+        "m2": {
+          "eps_autodiff_vs_target_fd": 0.0549149674721303,
+          "cos_autodiff_vs_target_fd": 0.9985367561820082,
+          "target_fd_convergence": 0.0018167145225774638,
+          "autodiff_vs_surrogate_fd": 0.0027677863686758246
+        },
+        "chi1": {
+          "eps_autodiff_vs_target_fd": 0.02734028755826305,
+          "cos_autodiff_vs_target_fd": 0.9997463499119278,
+          "target_fd_convergence": 0.0012028634771452556,
+          "autodiff_vs_surrogate_fd": 0.00022186070023837287
+        },
+        "chi2": {
+          "eps_autodiff_vs_target_fd": 0.09338536396532154,
+          "cos_autodiff_vs_target_fd": 0.998250939007691,
+          "target_fd_convergence": 0.0011927564377529876,
+          "autodiff_vs_surrogate_fd": 4.2313259249818966e-05
+        }
+      },
+      "fisher_sigma_target": {
+        "m1": 7.240656669944524,
+        "m2": 5.268081358165536,
+        "chi1": 0.6136543325636069,
+        "chi2": 1.562244745527983,
+        "mc": 1.2392167175398585,
+        "q": 0.2047427122263037,
+        "chi_eff": 0.16092217208167597
+      },
+      "fisher_sigma_surrogate": {
+        "m1": 10.346710269511126,
+        "m2": 7.291749966861256,
+        "chi1": 0.925296749238043,
+        "chi2": 2.31618309929616,
+        "mc": 1.4783762892112031,
+        "q": 0.2886792596121668,
+        "chi_eff": 0.21824407946853194
+      },
+      "fisher_sigma_ratio": {
+        "m1": 1.4289740200581005,
+        "m2": 1.3841376909563157,
+        "chi1": 1.507846844937143,
+        "chi2": 1.4825993852284474,
+        "mc": 1.1929925317228882,
+        "q": 1.409961099338605,
+        "chi_eff": 1.3562088843653084
+      }
+    },
+    {
+      "theta": {
+        "m1": 30.0,
+        "m2": 25.0,
+        "chi1": -0.2,
+        "chi2": 0.2
+      },
+      "mismatch_sur_vs_tgt": 4.144825376939387e-05,
+      "time_offset_s": 3.999999999999967e-05,
+      "params": {
+        "m1": {
+          "eps_autodiff_vs_target_fd": 0.033108520374414516,
+          "cos_autodiff_vs_target_fd": 0.9994753575109661,
+          "target_fd_convergence": 0.0026868590673726086,
+          "autodiff_vs_surrogate_fd": 0.003969338470654062
+        },
+        "m2": {
+          "eps_autodiff_vs_target_fd": 0.03851516202239239,
+          "cos_autodiff_vs_target_fd": 0.9992819611080649,
+          "target_fd_convergence": 0.002722238503410989,
+          "autodiff_vs_surrogate_fd": 0.0031317346518532573
+        },
+        "chi1": {
+          "eps_autodiff_vs_target_fd": 0.0143188386699994,
+          "cos_autodiff_vs_target_fd": 0.999904006776898,
+          "target_fd_convergence": 0.0009283236304876831,
+          "autodiff_vs_surrogate_fd": 0.00013756368837574605
+        },
+        "chi2": {
+          "eps_autodiff_vs_target_fd": 0.03592206767397001,
+          "cos_autodiff_vs_target_fd": 0.999683737089112,
+          "target_fd_convergence": 0.0007101750366730344,
+          "autodiff_vs_surrogate_fd": 8.37698765647786e-05
+        }
+      },
+      "fisher_sigma_target": {
+        "m1": 19.813700805026283,
+        "m2": 16.83959123875427,
+        "chi1": 5.214775774658756,
+        "chi2": 6.249503087517482,
+        "mc": 0.6234488958648543,
+        "q": 1.1112807718332594,
+        "chi_eff": 0.1418245862603851
+      },
+      "fisher_sigma_surrogate": {
+        "m1": 20.125098038478754,
+        "m2": 17.480814292862,
+        "chi1": 6.233264780212694,
+        "chi2": 7.593948642762968,
+        "mc": 0.7619357489279993,
+        "q": 1.1413437442970988,
+        "chi_eff": 0.19186907945127757
+      },
+      "fisher_sigma_ratio": {
+        "m1": 1.0157162579831365,
+        "m2": 1.0380783027934808,
+        "chi1": 1.195308302708487,
+        "chi2": 1.215128392836677,
+        "mc": 1.2221302403159038,
+        "q": 1.0270525444386527,
+        "chi_eff": 1.352861901525399
+      }
+    }
+  ],
+  "cost": {
+    "waveform_value_s": 0.001583643999765627,
+    "waveform_jacfwd_4params_s": 0.0031075180013431236,
+    "lnL_value_s": 0.0015648690023226663,
+    "lnL_grad_11params_s": 0.004614505480276421,
+    "lnL_value_batch100_s": 0.18998507602373138,
+    "lnL_grad_batch100_s": 0.5219608019979205,
+    "device": "TFRT_CPU_0",
+    "jax": "0.4.31",
+    "grad_over_value_lnL": 2.9488126312345075,
+    "grad_over_value_lnL_batch100": 2.7473779147406368,
+    "jacfwd_over_value_waveform": 1.962257932845402
+  }
+}

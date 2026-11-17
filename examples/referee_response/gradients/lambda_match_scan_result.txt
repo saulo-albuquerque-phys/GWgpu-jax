@@ -1,0 +1,4 @@
+surrogate Lambda 250 -> TEOBResumSPA 252.5 (mismatch 5.4e-06)
+surrogate Lambda 300 -> TEOBResumSPA 289.1 (mismatch 8.4e-05)
+surrogate Lambda 400 -> TEOBResumSPA 420.8 (mismatch 1.3e-04)
+surrogate Lambda 500 -> TEOBResumSPA 501.6 (mismatch 8.6e-07)
