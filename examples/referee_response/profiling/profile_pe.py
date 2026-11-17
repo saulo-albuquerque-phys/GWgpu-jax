@@ -164,19 +164,28 @@ def profile_gw170817():
     S["full_fixed_tc_phi"] = bench("full band, fixed tc & phi_c", full_plain, lambda b: batch(b, k11 + ["phi_c", "tc"]),
                                    [b for b in args.batches if b <= 100])
     if not args.skip_full_marg:
-        TC_CHECK = TC_GRID[::4]
-        full_tcphi = build_full_likelihood_tc_phi_marg(network=network, waveform_fn=waveform_fn, fiducial_params=FID,
-                                                       tc_grid=TC_CHECK, gmst=network.gmst)
-        # one particle per call (the N_tc x N_band phase matrix is 1.5 GB); not vmapped
-        P1 = batch(1, k11); p1 = {k: v[0] for k, v in P1.items()}
-        f = jax.jit(full_tcphi)
-        t0 = time.perf_counter(); _sync(f(p1)); tf = time.perf_counter() - t0
-        ts = []
-        for _ in range(args.repeats):
-            t0 = time.perf_counter(); _sync(f(p1)); ts.append(time.perf_counter() - t0)
-        t = float(np.median(ts))
-        S["full_tc_phi_marg_501tc"] = {1: dict(first_call_s=tf, compile_s=max(tf - t, 0), call_s=t, per_eval_s=t)}
-        print(f"  {'full band + tc + phi_c marg. (501 tc)':34s} batch     1: {1e6 * t:12.2f} us/eval   (first call {tf:.1f} s)", flush=True)
+        # one particle per call; not vmapped. The 501 x N_band complex phase table (1.5 GB) is a
+        # compile-time constant: on a GPU with JAX's default memory preallocation XLA may fail to
+        # allocate it -> record the failure and carry on (this stage is a reference, not production).
+        try:
+            TC_CHECK = TC_GRID[::4]
+            full_tcphi = build_full_likelihood_tc_phi_marg(network=network, waveform_fn=waveform_fn, fiducial_params=FID,
+                                                           tc_grid=TC_CHECK, gmst=network.gmst)
+            P1 = batch(1, k11); p1 = {k: v[0] for k, v in P1.items()}
+            f = jax.jit(full_tcphi)
+            t0 = time.perf_counter(); _sync(f(p1)); tf = time.perf_counter() - t0
+            ts = []
+            for _ in range(args.repeats):
+                t0 = time.perf_counter(); _sync(f(p1)); ts.append(time.perf_counter() - t0)
+            t = float(np.median(ts))
+            S["full_tc_phi_marg_501tc"] = {1: dict(first_call_s=tf, compile_s=max(tf - t, 0), call_s=t, per_eval_s=t)}
+            print(f"  {'full band + tc + phi_c marg. (501 tc)':34s} batch     1: {1e6 * t:12.2f} us/eval   (first call {tf:.1f} s)", flush=True)
+        except Exception as e:                     # noqa: BLE001 -- typically XlaRuntimeError (out of memory)
+            r["full_tc_phi_marg_501tc_error"] = f"{type(e).__name__}: {str(e).splitlines()[0][:200]}"
+            print(f"  full band + tc + phi_c marg. (501 tc): SKIPPED -- {r['full_tc_phi_marg_501tc_error']}", flush=True)
+        finally:
+            f = full_tcphi = None              # release the 1.5 GB constant before the next stages
+            jax.clear_caches()
     if args.sampler_compile:
         from gwgpu_jax.gwgpu_jax_acceptance_walk import WALK_RULE
         priors = {"mc": "uniform_in_components_chirp_mass", "q": "uniform_in_components_mass_ratio",
