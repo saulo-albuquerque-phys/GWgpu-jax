@@ -1,5 +1,7 @@
 # GWgpu-jax
 
+**Author:** Saulo Albuquerque ([ORCID 0000-0003-2911-9358](https://orcid.org/0000-0003-2911-9358)) — see [Author](#author).
+
 GWgpu-jax provides a user-friendly interface between JAX waveform generators, mainly the Machine Learning Surrogates (MLGW), and JAX sampling algorithms for GPU-accelerated parameter estimation in gravitational wave data analysis. It supplies JAX likelihoods, detector-network construction, and real-data import pipelines.
 
 ## How it works
@@ -254,6 +256,16 @@ ALL FOUR COMPONENTS WORKING IN THE SAME ENVIRONMENT
 ```bash
 export XLA_PYTHON_CLIENT_MEM_FRACTION=0.8   # use 80 % of GPU memory
 ```
+
+## Author
+
+GWgpu-jax was created and is maintained by **Saulo Albuquerque** (Saulo Soares de Albuquerque Filho,
+[ORCID 0000-0003-2911-9358](https://orcid.org/0000-0003-2911-9358)). The code was developed with the
+assistance of [Claude](https://www.anthropic.com/claude), Anthropic's AI model, used through Claude Code.
+
+The waveform surrogates it interfaces with are the work of their own authors: mlgw / MLGW-JAX
+(S. Schmidt, A. Frattale Mascioli and collaborators) and mlgw_bns (J. Tissino); see the table above and
+the License section.
 
 ## License
 
