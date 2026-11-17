@@ -18,7 +18,7 @@ Paper figure (physical parameters only; component masses m1, m2 and chi_eff deri
 sampled mc, q, chi_1, chi_2; nuisance t_c, phi_c left out):
 
     python make_pp_plot.py --run-dir pp_mlgw_bbh_fixedwalk \
-        --params m1 m2 q chi_eff distance inclination ra dec psi --out pp_mlgw_bbh_fixedwalk/pp_plot_physical.pdf
+        --params m1 m2 chi_eff distance inclination ra dec psi --out pp_mlgw_bbh_fixedwalk/pp_plot_physical.pdf
 
 With --params the curves and the Fisher-combined p-value use exactly those parameters, and the
 summary goes to <out stem>_summary.json.
