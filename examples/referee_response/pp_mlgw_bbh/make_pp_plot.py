@@ -12,6 +12,14 @@ Reports, as in the LVK/bilby P-P convention (e.g. Romero-Shaw et al. 2020):
     (shows the best-measured spin combination is calibrated too).
 
     python make_pp_plot.py --run-dir pp_mlgw_bbh_run [--out pp_plot.pdf]
+
+Paper figure (physical parameters only; chi_eff replaces chi_1, chi_2; nuisance t_c, phi_c left out):
+
+    python make_pp_plot.py --run-dir pp_mlgw_bbh_fixedwalk \
+        --params mc q chi_eff distance inclination ra dec psi --out pp_mlgw_bbh_fixedwalk/pp_plot_physical.pdf
+
+With --params the curves and the Fisher-combined p-value use exactly those parameters, and the
+summary goes to <out stem>_summary.json.
 """
 import argparse
 import glob
@@ -29,6 +37,8 @@ ap = argparse.ArgumentParser(description=__doc__,
 ap.add_argument("--run-dir", required=True)
 ap.add_argument("--out", default=None, help="default: <run-dir>/pp_plot.pdf")
 ap.add_argument("--no-chi-eff", action="store_true")
+ap.add_argument("--params", nargs="+", default=None,
+                help="plot and combine only these (may include the derived chi_eff)")
 args = ap.parse_args()
 
 run = Path(args.run_dir)
@@ -62,6 +72,13 @@ if qn and "chi_1" in names and not args.no_chi_eff:
     if pe is not None:
         pvals["chi_eff"] = np.array(pe)
 
+if args.params:
+    missing = [n for n in args.params if n not in pvals]
+    if missing:
+        raise SystemExit(f"unknown/unavailable parameters: {missing}")
+    pvals = {n: pvals[n] for n in args.params}
+    names = list(args.params)
+
 N = len(recs)
 x = np.linspace(0, 1, 1001)
 fig, ax = plt.subplots(figsize=(6.5, 6.5))
@@ -72,11 +89,11 @@ for sig, a in [(1, 0.25), (2, 0.15), (3, 0.08)]:
 ax.plot([0, 1], [0, 1], "k--", lw=0.8)
 
 ks = {}
-cmap = plt.get_cmap("tab20")
+cmap = plt.get_cmap("tab10" if len(pvals) <= 10 else "tab20")
 for j, (n, p) in enumerate(pvals.items()):
     ks[n] = float(stats.kstest(p, "uniform").pvalue)
     ax.plot(x, np.searchsorted(np.sort(p), x, side="right") / N, lw=1.4,
-            color=cmap(j % 20), label=f"{LABELS.get(n, n)} ({ks[n]:.2f})")
+            color=cmap(j % cmap.N), label=f"{LABELS.get(n, n)} ({ks[n]:.2f})")
 comb = float(stats.combine_pvalues([ks[n] for n in names], method="fisher").pvalue)
 
 ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.set_aspect("equal")
@@ -94,12 +111,13 @@ summary = dict(n=N, ks_pvalues=ks, combined_pvalue_fisher=comb,
                snr_min=float(snr.min()), snr_median=float(np.median(snr)),
                snr_max=float(snr.max()), n_snr_ge_8=int((snr >= 8).sum()),
                wall_time_median_s=float(np.median(el)), wall_time_total_h=float(el.sum() / 3600))
-json.dump(summary, open(run / "pp_summary.json", "w"), indent=2)
+summary_file = out.with_name(out.stem + "_summary.json") if args.params else run / "pp_summary.json"
+json.dump(summary, open(summary_file, "w"), indent=2)
 
 print(f"N = {N}   SNR {snr.min():.1f}–{snr.max():.1f} (median {np.median(snr):.1f}, "
       f"{(snr >= 8).sum()} with SNR>=8)")
 for n, p in ks.items():
     print(f"  {n:12s} KS p = {p:.3f}")
-print(f"combined (Fisher, sampled params) p = {comb:.3f}")
+print(f"combined (Fisher, {'selected' if args.params else 'sampled'} params) p = {comb:.3f}")
 print(f"wall time per injection: median {np.median(el)/60:.1f} min, total {el.sum()/3600:.1f} h")
-print("saved", out, "and", run / "pp_summary.json")
+print("saved", out, "and", summary_file)
