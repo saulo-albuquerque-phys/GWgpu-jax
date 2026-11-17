@@ -2,6 +2,21 @@
 
 GWgpu-jax provides a user-friendly interface between JAX waveform generators, mainly the Machine Learning Surrogates (MLGW), and JAX sampling algorithms for GPU-accelerated parameter estimation in gravitational wave data analysis. It supplies JAX likelihoods, detector-network construction, and real-data import pipelines.
 
+## How it works
+
+<p align="center">
+  <img src="docs/architecture.png" alt="GWgpu-jax architecture: waveform function, detector data and priors feed a single JAX likelihood (waveform, detector projection, likelihood with optional relative binning and tc/phi_c marginalisation), vectorised with jax.vmap over the chains and sampled with BlackJAX-NS" width="640">
+</p>
+
+GWgpu-jax is an integration layer: it does not implement waveform models or samplers itself. You
+supply any JAX function that returns the two polarisations, and GWgpu-jax combines it with the
+detector data, PSDs and geometry into a single pure-JAX log-likelihood, either over the full
+frequency grid or with relative binning and analytic marginalisation over the coalescence time and
+phase. The likelihood is vectorised with `jax.vmap` over the `num_delete` chains that the nested
+sampler advances together, so memory scales with `num_delete` rather than with the number of live
+points, and each sampler iteration is compiled once with `jax.jit`.
+(Diagram source: [`docs/architecture.tex`](docs/architecture.tex).)
+
 ## Waveform generators
 
 | Generator | Model | Domain | Source type | Reference |
