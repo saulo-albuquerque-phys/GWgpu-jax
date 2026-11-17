@@ -50,6 +50,7 @@ def compile_s(stage):
 
 
 out = {}
+fallback = []
 for what in ("gw170817", "gw150914_22", "gw150914_hm"):
     rows = [(lab(p), p["results"][what]) for p in P if what in p["results"]]
     gpu_labels = {lab(p) for p in P if p["info"]["platform"] == "gpu"}
@@ -66,8 +67,12 @@ for what in ("gw170817", "gw150914_22", "gw150914_hm"):
             if st is None:
                 cells.append(f"{'-':>24s}"); continue
             v = per_eval(st, a.batch); c = compile_s(st)
-            out[what].setdefault(s, {})[l] = dict(per_eval_ms=1e3 * v, compile_s=c)
-            cells.append(f"{1e3 * v:14.4f} ({c:5.1f} s)")
+            exact = a.batch in st or str(a.batch) in st
+            out[what].setdefault(s, {})[l] = dict(per_eval_ms=1e3 * v, compile_s=c, measured_at_batch=exact)
+            cells.append(f"{1e3 * v:13.4f}{' ' if exact else '*'}({c:5.1f} s)")
+            if not exact:
+                fallback.append(f"{what}/{s} on {l}: batch {a.batch} not measured "
+                                f"({(st.get('errors') or {}).get(str(a.batch), 'not run')}); value is from a smaller batch")
         print(f"{s:38s}" + "".join(cells))
 
     if what == "gw170817":
@@ -92,6 +97,8 @@ for what in ("gw170817", "gw150914_22", "gw150914_hm"):
                 print(f"  without RB, tc/phi marg. on 2001 tc points (scaled from 501): {n * t / 3600:.1f} h")
             out.setdefault("gw170817_breakdown", {})[l] = dict(parts_s=parts, sampler_overhead_s=a.gw170817_wall - like)
 
+for m in fallback:
+    print("* " + m)
 print("""
 CPU references (bilby/dynesty, same data/priors): GW170817 TEOBResumSPA RB 31-39 ms/call (1 core), run 9.2 h x 32 cores
 for 2.97e7 calls; GW150914 SEOBNRv5HM (2,2) 47 ms/call (laptop, 1 core); GW150914 SEOBNRv5HM 7 modes: 97.8 h x 16 cores
