@@ -104,3 +104,8 @@ examples/tests_pp_test_investigation/
 tests/pp_tests/
 examples/frozen_benchmark/bilby_frozen_4s*/
 examples/frozen_benchmark/gwjax_frozen_4s*/
+
+# Paper manuscript (LaTeX) and referee-response drafts: private, local only.
+paper_revision/
+# Local Claude Code project files (settings, notes).
+.claude/
