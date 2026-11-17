@@ -30,8 +30,14 @@ for f in a.profiles:
     if same is None:
         P.append(p)
     else:
-        for w, r in p["results"].items():
-            same["results"].setdefault(w, r)
+        for w, r in p["results"].items():       # later files fill missing analyses, or replace a stage
+            if w not in same["results"]:          # whose requested batches failed (OOM) earlier
+                same["results"][w] = r
+                continue
+            for s, st in r["stages"].items():
+                old = same["results"][w]["stages"].get(s)
+                if old is None or ("errors" in old and "errors" not in st):
+                    same["results"][w]["stages"][s] = st
 
 
 def per_eval(stage, b):

@@ -39,6 +39,9 @@ ap.add_argument("--skip-full-marg", action="store_true", help="skip the full-ban
 ap.add_argument("--sampler-compile", action="store_true",
                 help="GW170817: also time the production acceptance-walk sampler's compile + first iteration")
 ap.add_argument("--sampler-nlive", type=int, default=1000)
+ap.add_argument("--stages", nargs="+", default=None,
+                help="GW150914 only: time just these stages (waveform_td_fft, likelihood), e.g. the 7-mode "
+                     "likelihood alone in a fresh process")
 ap.add_argument("--label", default="")
 ap.add_argument("--out", required=True)
 args, _ = ap.parse_known_args()
@@ -275,9 +278,11 @@ def profile_gw150914(hm):
     name = "GW150914 7 modes (8 s)" if hm else "GW150914 (2,2) (4 s)"
     print(f"{name}: {grid.n_samples} samples, {int(np.sum(np.asarray(grid.frequency_mask)))} band bins", flush=True)
     freqs = grid.frequency_domain_array
-    return dict(n_samples=int(N), duration=float(grid.duration), modes="all 7" if hm else "(2,2)", stages=dict(
-        waveform_td_fft=bench("waveform (TD + taper + rFFT)", lambda p: waveform_fn(p, freqs)[0], batch, args.batches),
-        likelihood=bench("likelihood (full band)", ll, batch, args.batches)))
+    todo = {"waveform_td_fft": ("waveform (TD + taper + rFFT)", lambda p: waveform_fn(p, freqs)[0]),
+            "likelihood": ("likelihood (full band)", ll)}
+    stages = {k: bench(name, fn, batch, args.batches) for k, (name, fn) in todo.items()
+              if args.stages is None or k in args.stages}
+    return dict(n_samples=int(N), duration=float(grid.duration), modes="all 7" if hm else "(2,2)", stages=stages)
 
 
 for w in args.what:
