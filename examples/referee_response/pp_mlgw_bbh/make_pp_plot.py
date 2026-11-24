@@ -97,6 +97,10 @@ if args.params:
 
 N = len(recs)
 x = np.linspace(0, 1, 1001)
+# shown one column wide in the paper: large fonts so that labels stay legible in print
+plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", "font.size": 15,
+                     "axes.labelsize": 19, "xtick.labelsize": 15, "ytick.labelsize": 15,
+                     "xtick.direction": "in", "ytick.direction": "in"})
 fig, ax = plt.subplots(figsize=(6.5, 6.5))
 for sig, a in [(1, 0.25), (2, 0.15), (3, 0.08)]:
     e = stats.norm.cdf(sig)
@@ -108,14 +112,16 @@ ks = {}
 cmap = plt.get_cmap("tab10" if len(pvals) <= 10 else "tab20")
 for j, (n, p) in enumerate(pvals.items()):
     ks[n] = float(stats.kstest(p, "uniform").pvalue)
-    ax.plot(x, np.searchsorted(np.sort(p), x, side="right") / N, lw=1.4,
+    ax.plot(x, np.searchsorted(np.sort(p), x, side="right") / N, lw=1.8,
             color=cmap(j % cmap.N), label=f"{LABELS.get(n, n)} ({ks[n]:.2f})")
 comb = float(stats.combine_pvalues([ks[n] for n in names], method="fisher").pvalue)
 
 ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.set_aspect("equal")
-ax.set_xlabel("C.I."); ax.set_ylabel("Fraction of events in C.I.")
-ax.set_title(f"N = {N}, combined p-value = {comb:.3f}")
-ax.legend(fontsize=8, loc="upper left", title="KS p-value", title_fontsize=8)
+ax.set_xlabel("Credible interval"); ax.set_ylabel("Fraction of events in credible interval")
+ax.set_title(f"N = {N}, combined $p$-value = {comb:.3f}", fontsize=17)
+ax.tick_params(top=True, right=True)
+ax.legend(fontsize=13.5, loc="upper left", title="KS $p$-value", title_fontsize=13.5, frameon=False,
+          handlelength=1.4, labelspacing=0.3, borderaxespad=0.3)
 out = Path(args.out) if args.out else run / "pp_plot.pdf"
 fig.savefig(out, bbox_inches="tight")
 fig.savefig(out.with_suffix(".png"), dpi=150, bbox_inches="tight")

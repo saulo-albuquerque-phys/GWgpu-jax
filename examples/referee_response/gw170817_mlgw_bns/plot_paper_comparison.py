@@ -17,7 +17,7 @@ import matplotlib as mpl
 import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.ticker import FormatStrFormatter, MaxNLocator
+from matplotlib.ticker import FixedLocator, FormatStrFormatter, MaxNLocator
 from scipy.stats import gaussian_kde
 
 HERE = Path(__file__).resolve().parent
@@ -29,7 +29,7 @@ PARAMS = {
     "chi_eff":      (r"$\chi_{\rm eff}$", "{:.3f}", "%.2f", (None, None)),
     "lambda_tilde": (r"$\tilde{\Lambda}$", "{:.0f}", "%.0f", (0.0, None)),
     "distance":     (r"$d_L\,[\mathrm{Mpc}]$", "{:.1f}", "%.0f", (None, None)),
-    "inclination":  (r"$\theta_{JN}\,[\mathrm{rad}]$", "{:.2f}", "%.1f", (None, PI)),
+    "inclination":  (r"$\theta_{JN}$", "{:.2f}", "%.1f", (None, PI)),
 }
 C_GWJAX, C_BILBY, C_GWTC = "#1b4f8a", "#d1495b", "0.45"
 
@@ -83,6 +83,8 @@ def main():
     ap.add_argument("--no-gwtc1", action="store_true")
     ap.add_argument("--smooth", type=float, default=1.6, help="2D Gaussian smoothing (bins)")
     ap.add_argument("--out", default="paper_gw170817_comparison")
+    ap.add_argument("--fig-size", type=float, default=7.5,
+                    help="figure width = height [in]; the paper shows it one column wide, so keep it small")
     a = ap.parse_args()
 
     sets = [("GWgpu-jax + mlgw_bns_jax (GPU)", load_gwjax(a.run_dir), C_GWJAX, "-", True),
@@ -102,17 +104,18 @@ def main():
         rng.append((max(lo - pad, blo) if blo is not None else lo - pad,
                     min(hi + pad, bhi) if bhi is not None else hi + pad))
 
+    # drawn small (the paper shows it one column wide) with large fonts, so labels stay legible in print
     mpl.rcParams.update({
         "font.family": "serif", "mathtext.fontset": "cm", "font.size": 13,
-        "axes.labelsize": 19, "xtick.labelsize": 12, "ytick.labelsize": 12,
+        "axes.labelsize": 20, "xtick.labelsize": 12.5, "ytick.labelsize": 12.5,
         "axes.linewidth": 0.8, "xtick.direction": "in", "ytick.direction": "in",
     })
-    fig = None
+    fig = plt.subplots(n, n, figsize=(a.fig_size, a.fig_size))[0]
     for label, s, col, ls, fill in sets:
         X = np.column_stack([s[p] for p in names])
         fig = corner.corner(
             X, fig=fig, range=rng, bins=40, smooth=a.smooth, levels=(0.5, 0.9),
-            labels=[PARAMS[p][0] for p in names], color=col, max_n_ticks=4, labelpad=0.06,
+            labels=[PARAMS[p][0] for p in names], color=col, max_n_ticks=3, labelpad=0.3,
             plot_datapoints=False, plot_density=False, fill_contours=fill, no_fill_contours=not fill,
             contour_kwargs=dict(linewidths=1.5 if ls == "-" else 1.3, linestyles=ls),
             hist_kwargs=dict(alpha=0.0),            # 1D panels are redrawn below with KDEs
@@ -131,28 +134,37 @@ def main():
                 ax.fill_between(grid, 0, y, color=col, alpha=0.15, lw=0)
             top = max(top, y.max())
         ax.set_xlim(rng[i]); ax.set_ylim(0, 1.08 * top); ax.set_yticks([])
-        axes[n - 1, i].xaxis.set_major_locator(MaxNLocator(4, prune="both"))
+        axes[n - 1, i].xaxis.set_major_locator(MaxNLocator(3, prune="upper"))   # no tick label at the shared corner
         axes[n - 1, i].xaxis.set_major_formatter(FormatStrFormatter(PARAMS[p][2]))
         if i > 0:
-            axes[i, 0].yaxis.set_major_locator(MaxNLocator(4, prune="both"))
+            axes[i, 0].yaxis.set_major_locator(MaxNLocator(3, prune="lower"))
             axes[i, 0].yaxis.set_major_formatter(FormatStrFormatter(PARAMS[p][2]))
+    # keep tick labels away from the panel edges, where they would touch the neighbouring panel's labels
+    for i in range(n):
+        for axis, ax in ((axes[n - 1, i].xaxis, axes[n - 1, i]), (axes[i, 0].yaxis, axes[i, 0])):
+            if axis is axes[0, 0].yaxis:
+                continue
+            lo, hi = ax.get_xlim() if axis is ax.xaxis else ax.get_ylim()
+            ticks = [t for t in axis.get_majorticklocs() if lo + 0.08 * (hi - lo) <= t <= hi - 0.08 * (hi - lo)]
+            axis.set_major_locator(FixedLocator(ticks))
     for ax in fig.axes:
-        ax.tick_params(length=3.5, width=0.7, top=True, right=True)
-    fig.subplots_adjust(left=0.085, bottom=0.085, right=0.985, top=0.985, wspace=0.05, hspace=0.05)
+        ax.tick_params(length=3, width=0.7, top=True, right=True)
+    fig.subplots_adjust(left=0.145, bottom=0.145, right=0.985, top=0.985, wspace=0.06, hspace=0.06)
 
     # legend + median / 90% interval table in the empty upper-right triangle
-    handles = [mlines.Line2D([], [], color=col, ls=ls, lw=2.2, label=label) for label, _, col, ls, _ in sets]
-    fig.legend(handles=handles, loc="upper right", bbox_to_anchor=(0.975, 0.975), fontsize=17, frameon=False)
-    y0, dy = 0.835, 0.030
-    fig.text(0.975, y0 + dy, "median and 90% credible interval", ha="right", fontsize=13, color="0.3")
+    handles = [mlines.Line2D([], [], color=col, ls=ls, lw=2.6, label=label) for label, _, col, ls, _ in sets]
+    fig.legend(handles=handles, loc="upper right", bbox_to_anchor=(0.99, 0.995), fontsize=14, frameon=False,
+               handlelength=1.5)
+    y0, dy = 0.84, 0.04
+    fig.text(0.985, y0 + 0.9 * dy, "median and 90% credible interval", ha="right", fontsize=12.5, color="0.3")
     for r, p in enumerate(names):
         f = PARAMS[p][1]
-        fig.text(0.60, y0 - r * dy, PARAMS[p][0].split(r"\,[")[0] + ("$" if r"\,[" in PARAMS[p][0] else ""),
-                 ha="right", fontsize=14)
+        fig.text(0.62, y0 - r * dy, PARAMS[p][0].split(r"\,[")[0] + ("$" if r"\,[" in PARAMS[p][0] else ""),
+                 ha="right", fontsize=15)
         for c, (label, s, col, ls, fill) in enumerate(sets):
             lo, med, hi = np.quantile(s[p], [0.05, 0.5, 0.95])
-            fig.text(0.63 + 0.125 * c, y0 - r * dy,
-                     f"${f.format(med)}^{{+{f.format(hi - med)}}}_{{-{f.format(med - lo)}}}$", fontsize=13.5, color=col)
+            fig.text(0.64 + 0.18 * c, y0 - r * dy,
+                     f"${f.format(med)}^{{+{f.format(hi - med)}}}_{{-{f.format(med - lo)}}}$", fontsize=14.5, color=col)
             print(f"{p:13s} {label[:22]:22s} {f.format(med)} +{f.format(hi - med)} -{f.format(med - lo)}")
     for ext in ("pdf", "png"):
         fig.savefig(a.run_dir / f"{a.out}.{ext}", dpi=220 if ext == "png" else None)

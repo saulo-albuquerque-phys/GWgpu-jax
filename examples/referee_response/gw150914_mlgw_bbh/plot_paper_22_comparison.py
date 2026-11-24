@@ -19,8 +19,9 @@ from pathlib import Path
 import corner
 import matplotlib as mpl
 import matplotlib.lines as mlines
+import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.ticker import FormatStrFormatter, MaxNLocator
+from matplotlib.ticker import FixedLocator, FormatStrFormatter, MaxNLocator
 from scipy.stats import gaussian_kde
 
 HERE = Path(__file__).resolve().parent
@@ -37,9 +38,9 @@ P = {
     "chi_2":       (r"$\chi_2$", "{:.2f}", "%.1f", (-0.9, 0.9), None),
     "chi_eff":     (r"$\chi_{\rm eff}$", "{:.2f}", "%.1f", (None, None), None),
     "distance":    (r"$d_L\,[\mathrm{Mpc}]$", "{:.0f}", "%.0f", (50.0, 2000.0), None),
-    "inclination": (r"$\theta_{JN}\,[\mathrm{rad}]$", "{:.2f}", "%.1f", (0.0, PI), None),
-    "ra":          (r"$\alpha\,[\mathrm{rad}]$", "{:.2f}", "%.1f", (None, None), 2 * PI),
-    "dec":         (r"$\delta\,[\mathrm{rad}]$", "{:.2f}", "%.1f", (-PI / 2, PI / 2), None),
+    "inclination": (r"$\theta_{JN}$", "{:.2f}", "%.1f", (0.0, PI), None),
+    "ra":          (r"$\alpha$", "{:.2f}", "%.1f", (None, None), 2 * PI),
+    "dec":         (r"$\delta$", "{:.2f}", "%.1f", (-PI / 2, PI / 2), None),
     "psi":         (r"$\psi\,[\mathrm{rad}]$", "{:.2f}", "%.1f", (None, None), PI),
     "phi_c":       (r"$\phi_c\,[\mathrm{rad}]$", "{:.2f}", "%.1f", (None, None), 2 * PI),
     "tc":          (r"$t_c\,[\mathrm{s}]$", "{:.4f}", "%.3f", (None, None), None),
@@ -93,6 +94,10 @@ def main():
     ap.add_argument("--n-sub", type=int, default=2500)
     ap.add_argument("--n-boot", type=int, default=50)
     ap.add_argument("--out", default="paper_gw150914_22_comparison")
+    ap.add_argument("--fig-size", type=float, default=7.5,
+                    help="figure width = height [in]; the paper shows it one column wide, so keep it small")
+    ap.add_argument("--reuse-jsd", action="store_true",
+                    help="read the JSD table from RUN_DIR/jsd_gwjax_vs_bilby_SEOBNRv5HM_22.json instead of recomputing it")
     a = ap.parse_args()
 
     G = load_gwjax(a.run_dir)
@@ -100,6 +105,16 @@ def main():
     R = json.load(open(a.run_dir / "result.json"))
 
     # ── JS divergences ──────────────────────────────────────────────────────────────────────
+    jsd_file = a.run_dir / "jsd_gwjax_vs_bilby_SEOBNRv5HM_22.json"
+    if a.reuse_jsd and jsd_file.exists():
+        table = json.load(open(jsd_file))["jsd"]
+        print("JSD table read from", jsd_file)
+    else:
+        table = compute_jsd_table(a, G, B, braw, R, jsd_file)
+    draw(a, G, B, table)
+
+
+def compute_jsd_table(a, G, B, braw, R, jsd_file):
     rng = np.random.default_rng(0)
     table = {}
     print(f"{'param':12s} {'gwjax median +/- (90%)':>28s} {'bilby median +/- (90%)':>28s}  JSD [bit] (5-95%)        floor a/b   w90 a/b")
@@ -121,11 +136,13 @@ def main():
                wall_time=dict(gwjax_s=R["elapsed_s"], gwjax_iterations=R["n_iterations"],
                               bilby_s=float(braw["sampling_time_s"]), bilby_likelihood_calls=int(braw["n_likelihood"])),
                n_samples=dict(gwjax=len(G["mc"]), bilby=len(B["mc"])), jsd=table)
-    json.dump(out, open(a.run_dir / "jsd_gwjax_vs_bilby_SEOBNRv5HM_22.json", "w"), indent=2)
+    json.dump(out, open(jsd_file, "w"), indent=2)
     print(f"ln BF: gwjax {R['log_bayes_factor']:.2f} +- {R['logZ_err']:.2f}   bilby {float(braw['log_z']):.2f} +- {float(braw['log_z_err']):.2f}")
     print(f"max JSD {max(v['jsd_median'] for v in table.values()):.4f} bit")
+    return table
 
-    # ── figure ───────────────────────────────────────────────────────────────────────────────
+
+def draw(a, G, B, table):
     sets = [("GWgpu-jax + mlgw_bbh_jax, (2,2) mode (GPU)", G, C_GWJAX, True),
             ("bilby/dynesty + SEOBNRv5HM, (2,2) mode (CPU)", B, C_BILBY, False)]
     n = len(FIG)
@@ -135,13 +152,14 @@ def main():
         lo = min(np.quantile(s[1][p], 0.003) for s in sets); hi = max(np.quantile(s[1][p], 0.997) for s in sets)
         pad = 0.04 * (hi - lo); blo, bhi = P[p][3]
         rngs.append((max(lo - pad, blo) if blo is not None else lo - pad, min(hi + pad, bhi) if bhi is not None else hi + pad))
-    mpl.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", "font.size": 13, "axes.labelsize": 19,
-                         "xtick.labelsize": 12, "ytick.labelsize": 12, "axes.linewidth": 0.8,
+    # drawn small (the paper shows it one column wide) with large fonts, so labels stay legible in print
+    mpl.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", "font.size": 13, "axes.labelsize": 20,
+                         "xtick.labelsize": 12.5, "ytick.labelsize": 12.5, "axes.linewidth": 0.8,
                          "xtick.direction": "in", "ytick.direction": "in"})
-    fig = None
+    fig = plt.subplots(n, n, figsize=(a.fig_size, a.fig_size))[0]
     for label, s, col, fill in sets:
         fig = corner.corner(np.column_stack([s[p] for p in FIG]), fig=fig, range=rngs, bins=40, smooth=a.smooth,
-                            levels=(0.5, 0.9), labels=[P[p][0] for p in FIG], color=col, max_n_ticks=4, labelpad=0.06,
+                            levels=(0.5, 0.9), labels=[P[p][0] for p in FIG], color=col, max_n_ticks=3, labelpad=0.3,
                             plot_datapoints=False, plot_density=False, fill_contours=fill, no_fill_contours=not fill,
                             contour_kwargs=dict(linewidths=1.5), hist_kwargs=dict(alpha=0.0))
     axes = np.asarray(fig.axes).reshape(n, n)
@@ -157,26 +175,35 @@ def main():
                 ax.fill_between(grid, 0, y, color=col, alpha=0.15, lw=0)
             top = max(top, y.max())
         ax.set_xlim(rngs[i]); ax.set_ylim(0, 1.08 * top); ax.set_yticks([])
-        axes[n - 1, i].xaxis.set_major_locator(MaxNLocator(4, prune="both"))
+        axes[n - 1, i].xaxis.set_major_locator(MaxNLocator(3, prune="upper"))   # no tick label at the shared corner
         axes[n - 1, i].xaxis.set_major_formatter(FormatStrFormatter(P[p][2]))
         if i > 0:
-            axes[i, 0].yaxis.set_major_locator(MaxNLocator(4, prune="both"))
+            axes[i, 0].yaxis.set_major_locator(MaxNLocator(3, prune="lower"))
             axes[i, 0].yaxis.set_major_formatter(FormatStrFormatter(P[p][2]))
+    # keep tick labels away from the panel edges, where they would touch the neighbouring panel's labels
+    for i in range(n):
+        for axis, ax in ((axes[n - 1, i].xaxis, axes[n - 1, i]), (axes[i, 0].yaxis, axes[i, 0])):
+            if axis is axes[0, 0].yaxis:
+                continue
+            lo, hi = ax.get_xlim() if axis is ax.xaxis else ax.get_ylim()
+            ticks = [t for t in axis.get_majorticklocs() if lo + 0.08 * (hi - lo) <= t <= hi - 0.08 * (hi - lo)]
+            axis.set_major_locator(FixedLocator(ticks))
     for ax in fig.axes:
-        ax.tick_params(length=3.5, width=0.7, top=True, right=True)
-    fig.subplots_adjust(left=0.08, bottom=0.08, right=0.985, top=0.985, wspace=0.05, hspace=0.05)
-    handles = [mlines.Line2D([], [], color=col, lw=2.2, label=label) for label, _, col, _ in sets]
-    fig.legend(handles=handles, loc="upper right", bbox_to_anchor=(0.975, 0.975), fontsize=18, frameon=False)
-    y0, dy = 0.875, 0.027
-    fig.text(0.975, y0 + dy, "median and 90% credible interval;  JS divergence [bit]", ha="right", fontsize=13, color="0.3")
+        ax.tick_params(length=3, width=0.7, top=True, right=True)
+    fig.subplots_adjust(left=0.145, bottom=0.145, right=0.985, top=0.985, wspace=0.06, hspace=0.06)
+    handles = [mlines.Line2D([], [], color=col, lw=2.6, label=label) for label, _, col, _ in sets]
+    fig.legend(handles=handles, loc="upper right", bbox_to_anchor=(0.99, 0.995), fontsize=13.5, frameon=False,
+               handlelength=1.5)
+    y0, dy = 0.845, 0.0365
+    fig.text(0.985, y0 + 0.9 * dy, "median, 90% interval;  JSD [bit]", ha="right", fontsize=12.5, color="0.3")
     for r, p in enumerate(FIG):
         f = P[p][1]
-        fig.text(0.62, y0 - r * dy, P[p][0].split(r"\,[")[0] + ("$" if r"\,[" in P[p][0] else ""), ha="right", fontsize=14)
+        fig.text(0.6, y0 - r * dy, P[p][0].split(r"\,[")[0] + ("$" if r"\,[" in P[p][0] else ""), ha="right", fontsize=15)
         for c, (label, s, col, fill) in enumerate(sets):
             lo, med, hi = np.quantile(s[p], [0.05, 0.5, 0.95])
-            fig.text(0.65 + 0.115 * c, y0 - r * dy, f"${f.format(med)}^{{+{f.format(hi - med)}}}_{{-{f.format(med - lo)}}}$",
-                     fontsize=13.5, color=col)
-        fig.text(0.975, y0 - r * dy, f"{table[p]['jsd_median']:.4f}", ha="right", fontsize=13, color="0.25")
+            fig.text(0.615 + 0.14 * c, y0 - r * dy, f"${f.format(med)}^{{+{f.format(hi - med)}}}_{{-{f.format(med - lo)}}}$",
+                     fontsize=14.5, color=col)
+        fig.text(0.985, y0 - r * dy, f"{table[p]['jsd_median']:.4f}", ha="right", fontsize=13.5, color="0.25")
     for ext in ("pdf", "png"):
         fig.savefig(a.run_dir / f"{a.out}.{ext}", dpi=220 if ext == "png" else None)
     print("wrote", a.run_dir / f"{a.out}.pdf", "and .png")
